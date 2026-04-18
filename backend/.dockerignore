@@ -1,0 +1,12 @@
+# ignore everything
+*
+# except
+!prisma/
+!src/
+!Dockerfile
+!package-lock.json
+!package.json
+!prisma.config.ts
+!tsconfig.json
+!types.d.ts
+!README.md

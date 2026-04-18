@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  userId       Int           @id @default(autoincrement())
+  email        String        @unique
+  password     String
+  balance      BigInt
+  createdAt    DateTime      @default(now())
+  orders       Order[]
+  transactions Transaction[]
+  idemKeys     IdemKey[]
+  ledgers      Ledger[]
+}
+
+model IdemKey {
+  idemKey   String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [userId])
+  responce  String
+  createdAt DateTime @default(now())
+}
+
+enum OrderType {
+  BUY
+  SELL
+}
+
+model Order {
+  orderId    Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [userId])
+  pair       String
+  quantity   Int
+  openPrice  Int
+  closePrice Int?
+  pnl        Int?
+  type       OrderType
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([pair])
+  @@index([userId, pair])
+}
+
+enum LedgerTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  FEE_DEDUCTION
+  PROFIT
+  LOSS
+}
+
+model Ledger {
+  ledgerTransactionId   Int             @id @default(autoincrement())
+  userId                Int
+  user                  User            @relation(fields: [userId], references: [userId])
+  transactionAmount     Int
+  ledgerTransactionType LedgerTransactionType
+  createdAt             DateTime        @default(now())
+
+  @@index([userId, createdAt])
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  SETTLEMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  FAILED
+  SUCCESS
+}
+
+model Transaction {
+  transactionId Int               @id @default(autoincrement())
+  userId        Int
+  user          User              @relation(fields: [userId], references: [userId])
+  type          TransactionType
+  amount        Int
+  status        TransactionStatus
+  createdAt     DateTime          @default(now())
+
+  @@index([userId])
+}
