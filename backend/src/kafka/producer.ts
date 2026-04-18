@@ -21,7 +21,7 @@ export async function kafkaProducer(data: any) {
         ]
     })
 
-    return await waitForMessage(id);
+    const e = await waitForMessage(id);
 }
 
 

@@ -1,9 +1,6 @@
-
 import { prisma } from "../configs/db.js"
 import { redis } from "../configs/redis.js"
 import { LedgerTransactionType, OrderStatus } from "../../types.js"
-
-
 
 
 export async function addOrderIntoDb(data: any) {
@@ -15,7 +12,7 @@ export async function addOrderIntoDb(data: any) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-        await tx.order.create({
+        const newOrder = await tx.order.create({
             data: {
                 userId: Number(userId),
                 pair: String(pair),
@@ -34,6 +31,8 @@ export async function addOrderIntoDb(data: any) {
                 ledgerTransactionType: LedgerTransactionType.FEE_DEDUCTION
             }
         })
+
+        return newOrder
     })
     if (!result) {
         throw new Error("FAILED TO CREATE ORDER")
@@ -47,7 +46,6 @@ export async function addOrderIntoDb(data: any) {
     return {
         id, order: result.orderId, userId, pair, lot, openPrice, type, closePrice, pnl, task, timestamp
     }
-
 }
 
 export async function closeOrderIntoDb(data: any) {
@@ -57,31 +55,30 @@ export async function closeOrderIntoDb(data: any) {
         throw new Error("MISSING REQUIRED FIELDS")
     }
 
-    const resultOfOrderId = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
+
+        // BALANCE WILL GET UPDATED BY ALL ALL THE TRANSACTION AMOUNT OF LEDGER. (FOR SPECIFIC USER)
         await tx.ledger.create({
             userId: Number(userId),
             transactionAmount: Number(netProfitorLoss),
             ledgerTransactionType: netProfitorLoss > 0 ? LedgerTransactionType.PROFIT : LedgerTransactionType.LOSS
         })
 
-        await redis.zrem(`ORDERS:${resultOfOrderId.type}:${resultOfOrderId.pair}`, resultOfOrderId.orderId);
+        await redis.zrem(`ORDERS:${type}:${pair}`, orderId);
         await redis.set(`ORDER_STATUS_BY_ORDER_ID:${orderId}`, OrderStatus.CLOSED);
 
-        return await tx.order.findUnique({
-            where: {
-                orderId: Number(orderId)
-            }
-        })
+        return await tx.$executeRaw`
+        UPDATE Order 
+        SET closePrice = ${closePrice}, pnl = ${pnl} 
+        WHERE orderId = ${orderId}
+        `;
     })
-    if (!resultOfOrderId) {
+    if (!result) {
         throw new Error("FAILED TO CREATE ORDER")
     }
-
-
     return {
         id, idemKey, userId, orderId, pair, quantity, openPrice, closePrice, pnl, type, createdAt, netProfitorLoss, task, timestamp
     }
-
 }
 
 
