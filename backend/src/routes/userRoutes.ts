@@ -6,18 +6,6 @@ import { prisma } from '../configs/db.js';
 
 const router = Router();
 
-
-// HAVE TO RUN THIS COMMAND 
-// docker run -p 2181:2181 zookeeper
-
-// ANOTHER TERMINAL
-// docker run -p 9892:9892 \
-// -e KAFKA_ZOOKEEPER_CONNECT = <PRIVATE_IP>:2181 \
-// -e KAFKA_ADVERTISED_LISTENERS = PLAINTEXT://<PRIVATE_IP>:9092 \
-// -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR = 1 \
-// confluentinc/cp-kafka
-
-
 router.post("/createTrade", async (req: AuthRequest, res) => {
     const userId = req.userId;
     const { idemKey, pair, quantity, openPrice, type, closePrice, pnl } = req.body;
@@ -26,7 +14,7 @@ router.post("/createTrade", async (req: AuthRequest, res) => {
         return res.status(400).json({ error: "MISSING REQUIRED FIELD !" })
     }
 
-    // PRVENTION FROM PREPLAY AND RACE COND_1
+    // PRVENTION FROM PREPLAY AND RACE COND_1  (DONE APPLYED LOCK)
     const isNewReq = await redis.set(`idem:${idemKey}`, "LOCKED", 'EX', 60, 'NX');
     if (!isNewReq) {
         const cache = await redis.get(`idem:${idemKey}`);
@@ -43,12 +31,24 @@ router.post("/createTrade", async (req: AuthRequest, res) => {
         }
         const result = await kafkaProducer(kafkaEventData);
 
-        // TODO: HAVE TO PERSIST IDEM KEY KEY FROM PERMANENT REPLAY PREVENTION.
+        // PERSIST IDEM KEY KEY TO PREVENT PERMANENT REPLAY PREVENTION.
+        await prisma.idemKey.create({
+            data: {
+                idemKey: Number(idemKey),
+                userId: Number(result.userId),
+                response: result,
+            }
+        })
         await redis.set(`idem:${idemKey}`, JSON.stringify(result), 'EX', 3600);
         return res.status(201).json({ data: result });
-    } catch (error) {
-        console.log('ERROR : ', error);
+    } catch (error: any) {
+        console.log('ERROR : ', error.message);
         await redis.del(`idem:${idemKey}`);
+
+        if (error.message === 'CIRCUIT_BREAKER_OPEN') {
+            return res.status(503).json({ error: "ENGINE_BUSY", message: "Please try again in 30 seconds." });
+        }
+
         res.status(500).json({ error: "INTERNAL SERVER ERROR" })
     }
 })
@@ -61,7 +61,7 @@ router.post("/closeTrade", async (req: AuthRequest, res) => {
         return res.status(400).json({ error: "MISSING REQUIRED FIELD !" })
     }
 
-    // PRVENTION FROM REPLAY AND RACE COND_1
+    // PRVENTION FROM REPLAY AND RACE COND_1  (DONE APPLYED LOCK)
     const isNewReq = await redis.set(`idem:${idemKey}`, "LOCKED", 'EX', 60, 'NX');
     if (!isNewReq) {
         const cache = await redis.get(`idem:${idemKey}`);
@@ -81,22 +81,27 @@ router.post("/closeTrade", async (req: AuthRequest, res) => {
 
         const { userId, pair, quantity, openPrice, closePrice, pnl, type, createdAt } = orderSearchResult
 
-
         const kafkaEvent = { idemKey, orderId, userId, pair, quantity, openPrice, closePrice, pnl, type, createdAt, task: "CLOSE_TRADE" }
         const result = await kafkaProducer(kafkaEvent);
 
-        // TODO: HAVE TO PERSIST IDEM KEY KEY FROM PERMANENT REPLAY.
         await prisma.idemKey.create({
-            data:{
-                idemKey: result.idemKey
+            data: {
+                idemKey: Number(idemKey),
+                userId: Number(result.userId),
+                response: result,
             }
         })
         await redis.set(`idem:${idemKey}`, JSON.stringify(result), 'EX', 3600);
         return res.status(201).json({ data: result });
 
-    } catch (error) {
-        console.log('ERROR : ', error);
+    } catch (error: any) {
+        console.log('ERROR : ', error.message);
         await redis.del(`idem:${idemKey}`);
+
+        if (error.message === 'CIRCUIT_BREAKER_OPEN') {
+            return res.status(503).json({ error: "ENGINE_BUSY", message: "Please try again in 30 seconds." });
+        }
+
         res.status(500).json({ error: "INTERNAL SERVER ERROR" })
     }
 })
@@ -128,8 +133,14 @@ router.get("/balance", async (req: AuthRequest, res) => {
     }
 })
 
-
-
-
-
 export default router
+
+// HAVE TO RUN THIS COMMAND
+// docker run -p 2181:2181 zookeeper
+
+// ANOTHER TERMINAL
+// docker run -p 9892:9892 \
+// -e KAFKA_ZOOKEEPER_CONNECT = <PRIVATE_IP>:2181 \
+// -e KAFKA_ADVERTISED_LISTENERS = PLAINTEXT://<PRIVATE_IP>:9092 \
+// -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR = 1 \
+// confluentinc/cp-kafka

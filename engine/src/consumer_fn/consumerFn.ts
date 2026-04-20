@@ -32,7 +32,7 @@ export async function openTrade(id: string, data: any) {
         if (userBalance < requiredBalance) throw new Error("INSUFFICIENT_FUNDS");
 
         const tradeData = {
-            id, userId, pair, quantity, openPrice, closePrice, type, pnl, requiredBalance, requiredBalanceWithFee, Fee
+            id, userId, pair, quantity, openPrice, closePrice, type, pnl, requiredBalance, requiredBalanceWithFee, Fee,
             task: TradeStatus.ADD_ORDER_INTO_DB_N_REDIS,
             timestamp: Date.now()
         }
@@ -48,7 +48,6 @@ export async function openTrade(id: string, data: any) {
         throw new Error(error.message)
     }
 }
-//  openTrade RECEIVE THESE DATA IN data{}
 //  task: "OPEN_TRADE",
 //  idemKey,
 //  userId,
@@ -72,9 +71,6 @@ export async function closeTrade(id: string, data: any) {
             :
             Number(openPrice - closePrice) * Number(quantity)
 
-
-
-
         // TODO:  Balance Update (The Event)
 
         const tradeData = {
@@ -95,7 +91,4 @@ export async function closeTrade(id: string, data: any) {
         throw new Error(error.message)
     }
 }
-//  closeTrade RECEIVE THESE DATA IN data{}
-//  idemKey, userId, orderId, task: "CLOSE_TRADE"
-
 

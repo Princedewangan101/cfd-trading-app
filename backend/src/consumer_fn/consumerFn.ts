@@ -82,10 +82,7 @@ export async function closeOrderIntoDb(data: any) {
 }
 
 
-//  closeTrade RECEIVE THESE DATA IN data{}
-//  id, idemKey, userId, orderId,
-//  task: TradeStatus.CLOSE_ORDER_INTO_DB_N_REDIS,
-//  timestamp: Date.now()
+
 
 // const bestSell = await redis.zrange(`ORDERS:SELL:BTC`, 0, 0, "WITHSCORES");
 // const bestBuy = await redis.zrevrange(`ORDERS:BUY:BTC`, 0, 0, "WITHSCORES");
