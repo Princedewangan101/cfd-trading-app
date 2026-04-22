@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "ws": "^8.20.0"
+  }
+}

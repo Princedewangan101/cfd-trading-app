@@ -1,0 +1,1 @@
+export let userConnections = new Map<string, any>();

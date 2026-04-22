@@ -48,15 +48,6 @@ export async function openTrade(id: string, data: any) {
         throw new Error(error.message)
     }
 }
-//  task: "OPEN_TRADE",
-//  idemKey,
-//  userId,
-//  pair,
-//  quantity,
-//  openPrice,
-//  type,
-//  pnl: pnl ? pnl : 0
-//  closePrice: closePrice ? closePrice : "NO-CLOSING-PRICE", 
 
 export async function closeTrade(id: string, data: any) {
     try {
@@ -65,13 +56,10 @@ export async function closeTrade(id: string, data: any) {
         const { idemKey, orderId, userId, pair, quantity, openPrice, closePrice, pnl, type, createdAt, task } = data;
         if (!id || !idemKey || !userId || !orderId || !task) throw new Error("ENGINE- OPENTRADE FN MISSING REQUIRED FIELDS !")
 
-        // TODO: Realized PnL Calculation
         const netProfitorLoss = type === "BUY" ?
             Number(closePrice - openPrice) * Number(quantity)
             :
             Number(openPrice - closePrice) * Number(quantity)
-
-        // TODO:  Balance Update (The Event)
 
         const tradeData = {
             id, idemKey, userId, orderId, pair, quantity, openPrice, closePrice, pnl, type, createdAt, netProfitorLoss,
