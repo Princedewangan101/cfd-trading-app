@@ -1,11 +1,7 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-import {type AuthRequest} from '../../types.js'
-
-// interface AuthRequest extends Request {
-//   userId?: number;
-// }
+import {type AuthRequest} from '../../types'
 
 const userAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

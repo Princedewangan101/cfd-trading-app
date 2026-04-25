@@ -24,7 +24,7 @@
   },
   "include": [
     "src"
-  ],
+, "../a_gateway/src/middlewares/validate.ts"  ],
   "exclude": [
     "node_modules",
     "prisma.config.ts"

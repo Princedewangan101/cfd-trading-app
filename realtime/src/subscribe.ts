@@ -71,10 +71,34 @@ export async function priceUpdate() {
     })
 }
 
+export async function balanceUpdate() {
+    sub.on('message', (channel, message) => {
+        if (channel === CHANNEL) {
+            const data = JSON.parse(message);
+
+            const clientSocket = userConnections.get(data.userId_for_balance)
+
+            // 1 = OPEN
+            if (clientSocket && clientSocket.readyState === 1) {
+                clientSocket.send(JSON.stringify({
+                    userId: data.userId_for_balance,
+                    value: data.value,
+                    event: data.event,
+                    from: data.from
+                }));
+                console.log(`SUCCESSFULLY SENT FAILED TRADE MSG`);
+            }
+
+        }
+    })
+}
+
 // Event Name	Type	Description
 // TRADE_EXECUTED	Private	Confirms that a trade (BUY/SELL) is finished and successful.
 // TRADE_FAILED	Private	Informs the user why their trade failed (e.g., Insufficient funds).
 // PRICE_TICKER	Public	Live price changes (e.g., BTC/USD at $65,000.50).
-
 // BALANCE_UPDATE	Private	Real-time update of the user's wallet after fees or trade completion.
+
+// CLOSE_TRADE_EXECUTED
+// CLOSE_TRADE_FAILED
 // ORDERBOOK_UPDATE	Public	Real-time changes in market depth (new bids/asks).

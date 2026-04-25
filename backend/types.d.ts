@@ -5,12 +5,23 @@ export interface AuthRequest extends Request {
   userId?: number;
 }
 
+
+export interface ORDER {
+  id: any;
+  userId: any;
+  pair: any;
+  quantity: any;
+  openPrice: any;
+  type: any;
+  timestamp: any;
+}
+
 export interface ADD_ORDER_INTO_DB_RESULT_TYPE {
   id: any;
   order: any;
   userId: any;
   pair: any;
-  lot: any;
+  quantity: any;
   openPrice: any;
   type: any;
   closePrice: any;

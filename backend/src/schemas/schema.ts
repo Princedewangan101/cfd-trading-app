@@ -9,7 +9,7 @@ export const userSchema = z.object({
 export const orderSchema = z.object({
   userId: z.number(),
   pair: z.string(),
-  lot: z.number(),
+  quantity: z.number(),
   margin: z.number(),
   amount: z.number(),
   isBuy: z.string(),

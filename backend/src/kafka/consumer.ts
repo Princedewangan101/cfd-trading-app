@@ -1,6 +1,7 @@
 import type { ADD_ORDER_INTO_DB_RESULT_TYPE, CLOSE_ORDER_INTO_DB_RESULT_TYPE } from '../../types.js';
 import { redis } from '../configs/redis.js';
-import { addOrderIntoDb, closeOrderIntoDb } from '../consumer_fn/consumerFn.js';
+import { addOrderIntoDb } from '../consumer_fn/addOrderIntoDb.js';
+import { closeOrderIntoDb } from '../consumer_fn/closeOrderIntoDb.js';
 import { kafka } from './client.js'
 
 const consumer = kafka.consumer({

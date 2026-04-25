@@ -1,4 +1,5 @@
-import { closeTrade, openTrade } from "../consumer_fn/consumerFn.js";
+import { closeTrade} from "../consumer_fn/closeTrade.js";
+import { openTrade } from "../consumer_fn/openTrade.js";
 import { kafka } from "./client.js";
 
 const consumer = kafka.consumer({ groupId: "executive-engine" });
@@ -7,7 +8,7 @@ await consumer.connect()
 await consumer.subscribe({ topic: "execute-trade", fromBeginning: true })
 
 await consumer.run({
-    eachMessage: async ({ topic, partition, message }) => {
+    eachMessage: async ({ message }) => {
 
         try {
             if (!message || !message.value) throw new Error("message OR message.value NOT FOUND !")

@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { CustomWebSocket } from '../types';
 import createClient from 'ioredis';
 import { pub, redis } from '../redis';
-import { priceUpdate, tradeExecuted, tradeFailed } from './subscribe';
+import { balanceUpdate, priceUpdate, tradeExecuted, tradeFailed } from './subscribe';
 
 // KAFKA CONSUMER PUBLISH THE MESSAGE DATA INTO CHANNEL
 const kafka = new Kafka({ brokers: ['localhost:9092'] });
@@ -45,6 +45,10 @@ await consumer.run({
                 break;
 
             case value: "BALANCE_UPDATE"
+                const { userId_for_balance } = value
+                const liveBalanceUpdateData = { userId_for_balance, value, event, from }
+                await pub.publish(CHANNEL, JSON.stringify(liveBalanceUpdateData));
+                await balanceUpdate()
                 break;
 
             case value: "CLOSE_TRADE_EXECUTED"

@@ -33,16 +33,17 @@ enum OrderType {
 }
 
 model Order {
-  orderId    Int       @id @default(autoincrement())
-  userId     Int
-  user       User      @relation(fields: [userId], references: [userId])
-  pair       String
-  quantity   Int
-  openPrice  Int
-  closePrice Int?
-  pnl        Int?
-  type       OrderType
-  createdAt  DateTime  @default(now())
+  orderId        Int       @id @default(autoincrement())
+  userId         Int
+  user           User      @relation(fields: [userId], references: [userId])
+  pair           String
+  quantity       Int
+  openPrice      Int
+  closePrice     Int?
+  liquidatePrice Int
+  pnl            Int?
+  type           OrderType
+  createdAt      DateTime  @default(now())
 
   @@index([userId])
   @@index([pair])
@@ -58,12 +59,12 @@ enum LedgerTransactionType {
 }
 
 model Ledger {
-  ledgerTransactionId   Int             @id @default(autoincrement())
+  ledgerTransactionId   Int                   @id @default(autoincrement())
   userId                Int
-  user                  User            @relation(fields: [userId], references: [userId])
+  user                  User                  @relation(fields: [userId], references: [userId])
   transactionAmount     Int
   ledgerTransactionType LedgerTransactionType
-  createdAt             DateTime        @default(now())
+  createdAt             DateTime              @default(now())
 
   @@index([userId, createdAt])
 }
