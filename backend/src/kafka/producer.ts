@@ -26,7 +26,7 @@ export async function EventPublisher(data: any) {
     const id = Math.random().toString(36).substring(7);
 
     await producer.send({
-        topic: "execute-trade",
+        topic: "validate-order-data",
         messages: [
             { value: JSON.stringify({ value: data, id, from: "backend" }), partition: 0 }
         ]

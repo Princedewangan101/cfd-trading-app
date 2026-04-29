@@ -1,11 +1,18 @@
 import { Router } from 'express'
 import { openTrade } from '../handler/tradeHandlers/opentrade.js';
 import { closeTrade } from '../handler/tradeHandlers/closetrade.js';
+import { deposit } from '../handler/inOutHandler/deposit.js';
+import { withdraw } from '../handler/inOutHandler/withdraw.js';
+import { balance } from '../handler/inOutHandler/getBalance.js';
 
 const router = Router();
 
 router.post("/open", openTrade)
 router.post("/close", closeTrade)
+router.post("/deposit", deposit)
+router.post("/deposit", withdraw)
+router.post("/deposit", balance)
+
 
 export default router
 

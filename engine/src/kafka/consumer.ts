@@ -2,10 +2,10 @@ import { closeTrade} from "../consumer_fn/closeTrade.js";
 import { openTrade } from "../consumer_fn/openTrade.js";
 import { kafka } from "./client.js";
 
-const consumer = kafka.consumer({ groupId: "executive-engine" });
+const consumer = kafka.consumer({ groupId: "validation-grp-1" });
 
 await consumer.connect()
-await consumer.subscribe({ topic: "execute-trade", fromBeginning: true })
+await consumer.subscribe({ topic: "validate-order-data", fromBeginning: true })
 
 await consumer.run({
     eachMessage: async ({ message }) => {

@@ -27,17 +27,7 @@ export async function openTrade(req: AuthRequest, res: Response) {
             idemKey, userId, pair, quantity, openPrice, type, task: "OPEN_TRADE",
             closePrice: closePrice ? closePrice : "NO-CLOSING-PRICE", pnl: pnl ? pnl : 0
         }
-        const result = await kafkaProducer(kafkaEventData);
-
-        // PERSIST IDEM KEY KEY TO PREVENT PERMANENT REPLAY ATTACK.
-        await prisma.idemKey.create({
-            data: {
-                idemKey: idemKey,
-                userId: Number(result.userId),
-                response: result,
-            }
-        })
-        await redis.set(`idem:${idemKey}`, JSON.stringify(result), 'EX', 3600);
+        const result = await kafkaProducer(kafkaEventData); 
 
         return res.status(201).json({ data: result });
     } catch (error: any) {

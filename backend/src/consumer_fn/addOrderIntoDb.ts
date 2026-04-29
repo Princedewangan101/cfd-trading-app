@@ -1,30 +1,47 @@
 import { prisma } from "../configs/db.js"
 import { redis } from "../configs/redis.js"
-import { LedgerTransactionType, OrderStatus, WS_EVENT_TYPES,  } from "../../types.js"
+import { LedgerTransactionType, OrderStatus, WS_EVENT_TYPES, } from "../../types.js"
 import producer from "../kafka/producerInstance.js"
 
-const orders = new Map<string, Order>();
 
 export async function addOrderIntoDb(data: any) {
-    const { id, userId, pair, quantity, openPrice, type, closePrice, requiredBalance, requiredBalanceWithFee, Fee, liquidatePrice, pnl, task, timestamp } = data
+    const { id, idemKey, orderId, userId, pair, quantity, openPrice, type, closePrice, requiredBalance, requiredBalanceWithFee, Fee, liquidatePrice, pnl, task, timestamp } = data
     try {
-        if (!id || !userId || !pair || !quantity || !openPrice || !type || closePrice !== undefined || requiredBalance || Fee || requiredBalanceWithFee || !pnl || !task || !timestamp) {
+        if (!id || !userId || !orderId || !pair || !quantity || !openPrice || !type || closePrice !== undefined || requiredBalance || Fee || requiredBalanceWithFee || !pnl || !task || !timestamp) {
             throw new Error("MISSING REQUIRED FIELDS")
         }
 
         const result = await prisma.$transaction(async (tx) => {
+
+            const price = await redis.get(`cl${orderId}`)
+
             const newOrder = await tx.order.create({
                 data: {
+                    orderId: Number(orderId),
                     userId: Number(userId),
                     pair: String(pair),
                     quantity: Number(quantity),
                     openPrice: Number(openPrice),
-                    closePrice: closePrice !== "NO-CLOSING-PRICE" ? Number(closePrice) : null,
+                    closePrice: price ? Number(price.closePrice) : "NO_CLOSING_PRICE",
                     liquidationPrice: Number(liquidatePrice),
                     pnl: Number(pnl),
                     type
                 }
             })
+
+            // PERSIST IDEM KEY KEY TO PREVENT PERMANENT REPLAY ATTACK.
+            await prisma.idemKey.create({
+                data: {
+                    idemKey: idemKey,
+                    userId: Number(userId),
+                    response: newOrder,
+                }
+            })
+            await redis.set(`idem:${idemKey}`, JSON.stringify({
+                idemKey: idemKey,
+                userId: Number(userId),
+                response: newOrder,
+            }), 'EX', 3600);
 
             await tx.ledger.create({
                 data: {
@@ -45,6 +62,18 @@ export async function addOrderIntoDb(data: any) {
             return { newOrder, balanceResult }
         })
         if (!result) {
+            await prisma.idemKey.create({
+                data: {
+                    idemKey: idemKey,
+                    userId: Number(userId),
+                    response: "FAILED TO CREATE ORDER",
+                }
+            })
+            await redis.set(`idem:${idemKey}`, JSON.stringify({
+                idemKey: idemKey,
+                userId: Number(userId),
+                response: "FAILED TO CREATE ORDER",
+            }), 'EX', 3600);
             throw new Error("FAILED TO CREATE ORDER")
         }
 
@@ -65,20 +94,6 @@ export async function addOrderIntoDb(data: any) {
             }]
         });
 
-        const orderObj = {
-            id, userId, quantity, pair, openPrice, type, timestamp: Date.now()
-        }
-        orders.set(`ORDER-ID:${result.newOrder.orderId}`, orderObj)
-
-
-
-
-        // SET THE ORDER IN DISTRIBUTED IN MEMORY FOR MATCHING ENGINE:
-        // await redis.zadd(`ORDERS:${type}:${pair}`, SCORE, MEMBER);
-        await redis.zadd(`ORDERS:${type}:${pair}`, openPrice, result.newOrder.orderId);
-
-        await redis.set(`ORDER_STATUS_BY_ORDER_ID:${result.newOrder.orderId}`, OrderStatus.IN_MEMORY);
-
         // FOR LIVE "TRADE EXECUTED" MSG
         const value = { id, userId, pair, quantity, openPrice, type, closePrice, requiredBalance, requiredBalanceWithFee, Fee, pnl, task, timestamp }
         await producer.send({
@@ -91,6 +106,8 @@ export async function addOrderIntoDb(data: any) {
                 })
             }]
         });
+
+        
 
         return {
             id, order: result.newOrder.orderId, userId, pair, quantity, openPrice, type, closePrice, pnl, task, timestamp
@@ -110,8 +127,3 @@ export async function addOrderIntoDb(data: any) {
     }
 }
 
-
-
-
-// const bestSell = await redis.zrange(`ORDERS:SELL:BTC`, 0, 0, "WITHSCORES");
-// const bestBuy = await redis.zrevrange(`ORDERS:BUY:BTC`, 0, 0, "WITHSCORES");

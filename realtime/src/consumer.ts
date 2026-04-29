@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { CustomWebSocket } from '../types';
 import createClient from 'ioredis';
 import { pub, redis } from '../redis';
-import { balanceUpdate, priceUpdate, tradeExecuted, tradeFailed } from './subscribe';
+import { balanceUpdate, closingPriceUpdate, orderBookUpdate, priceUpdate, tradeExecuted, tradeFailed } from './subscribe';
 
 // KAFKA CONSUMER PUBLISH THE MESSAGE DATA INTO CHANNEL
 const kafka = new Kafka({ brokers: ['localhost:9092'] });
@@ -46,10 +46,27 @@ await consumer.run({
 
             case value: "BALANCE_UPDATE"
                 const { userId_for_balance } = value
-                const liveBalanceUpdateData = { userId_for_balance, value, event, from }
+                const liveBalanceUpdateData = { userId_for_balance, event, from }
                 await pub.publish(CHANNEL, JSON.stringify(liveBalanceUpdateData));
                 await balanceUpdate()
                 break;
+
+            case value: "ORDERBOOK_UPDATE"
+                const { buy, sell } = value
+                const orderBookUpdateData = { buy, sell, event, from }
+                await pub.publish(CHANNEL, JSON.stringify(orderBookUpdateData));
+                await orderBookUpdate()
+                break;
+
+
+
+            case value: "ADDED_CLOSE_PRICE"
+                const { userId_to_notify_cl_update, message } = value
+                const notify_the_closing_price_update = {userId_to_notify_cl_update , message, event, from }
+                await pub.publish(CHANNEL, JSON.stringify(notify_the_closing_price_update));
+                await closingPriceUpdate()
+                break;
+
 
             case value: "CLOSE_TRADE_EXECUTED"
                 break;
@@ -57,9 +74,6 @@ await consumer.run({
             case value: "CLOSE_TRADE_FAILED"
                 break;
 
-            // TODO AFTER OB
-            // case value: "ORDERBOOK_UPDATE"
-            //     break;
 
             default:
                 break;

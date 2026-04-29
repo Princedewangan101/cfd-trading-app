@@ -4,8 +4,8 @@ import { prisma } from "../../configs/db.js";
 import { redis } from "../../configs/redis.js";
 import { kafkaProducer } from "../../kafka/producer.js";
 
-export async function closeTrade(req: AuthRequest, res:Response) {
-        const userId = req.userId;
+export async function closeTrade(req: AuthRequest, res: Response) {
+    const userId = req.userId;
     const { idemKey, orderId } = req.body;
 
     if (!idemKey || !orderId) {
@@ -57,6 +57,4 @@ export async function closeTrade(req: AuthRequest, res:Response) {
     }
 }
 
-router.post("/close", async () => {
 
-})

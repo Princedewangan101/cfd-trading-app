@@ -17,13 +17,40 @@ model User {
   transactions Transaction[]
   idemKeys     IdemKey[]
   ledgers      Ledger[]
+  // accounts     Account[]
+}
+
+// model Account {
+//   accountId Int  @id @default(autoincrement())
+//   userId    Int
+//   user      User @relation(fields: [userId], references: [userId])
+//   createdAt    DateTime      @default(now())
+// }
+
+enum LedgerTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  FEE_DEDUCTION
+  PROFIT
+  LOSS
+}
+
+model Ledger {
+  ledgerTransactionId   Int                   @id @default(autoincrement())
+  userId                Int
+  user                  User                  @relation(fields: [userId], references: [userId])
+  transactionAmount     Int
+  ledgerTransactionType LedgerTransactionType
+  createdAt             DateTime              @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model IdemKey {
   idemKey   String   @unique
   userId    Int
   user      User     @relation(fields: [userId], references: [userId])
-  responce  String
+  response  String
   createdAt DateTime @default(now())
 }
 
@@ -50,24 +77,7 @@ model Order {
   @@index([userId, pair])
 }
 
-enum LedgerTransactionType {
-  DEPOSIT
-  WITHDRAWAL
-  FEE_DEDUCTION
-  PROFIT
-  LOSS
-}
 
-model Ledger {
-  ledgerTransactionId   Int                   @id @default(autoincrement())
-  userId                Int
-  user                  User                  @relation(fields: [userId], references: [userId])
-  transactionAmount     Int
-  ledgerTransactionType LedgerTransactionType
-  createdAt             DateTime              @default(now())
-
-  @@index([userId, createdAt])
-}
 
 enum TransactionType {
   DEPOSIT
