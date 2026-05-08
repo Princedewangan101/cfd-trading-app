@@ -1,1 +1,1 @@
-<img src="https://github.com/user-attachments/assets/0f80bd2d-4c64-42df-8c10-d66b226c9b21" width="100%" alt="System Architecture Logic Map" />
+<img width="100%" height="433" alt="System Architecture Map" src="https://github.com/user-attachments/assets/f98ef5de-c223-470b-b9ba-4cacb96c994b" />
