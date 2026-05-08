@@ -1,18 +1,20 @@
-// tsconfig.json
 {
   "compilerOptions": {
+
     "rootDir": "./src",
     "outDir": "./dist",
-    "module": "NodeNext",
-    "target": "ES2020",
+
+    "module": "nodenext",
+    "target": "esnext",
     "types": [],
+
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
+
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+
     "strict": true,
     "jsx": "react-jsx",
     "verbatimModuleSyntax": true,
@@ -20,13 +22,5 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-    "moduleResolution": "NodeNext",
-  },
-  "include": [
-    "src"
-, "../a_gateway/src/middlewares/validate.ts"  ],
-  "exclude": [
-    "node_modules",
-    "prisma.config.ts"
-  ]
+  }
 }

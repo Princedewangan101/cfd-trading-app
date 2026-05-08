@@ -1,3 +1,8 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -8,97 +13,68 @@ datasource db {
 }
 
 model User {
-  userId       Int           @id @default(autoincrement())
-  email        String        @unique
-  password     String
-  balance      BigInt
-  createdAt    DateTime      @default(now())
-  orders       Order[]
-  transactions Transaction[]
-  idemKeys     IdemKey[]
-  ledgers      Ledger[]
-  // accounts     Account[]
-}
+  userId           String   @id @default(uuid())
+  availableBalance Int      @default(0)
+  lockedBalance    Int      @default(0)
+  isProfitable     Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
-// model Account {
-//   accountId Int  @id @default(autoincrement())
-//   userId    Int
-//   user      User @relation(fields: [userId], references: [userId])
-//   createdAt    DateTime      @default(now())
-// }
-
-enum LedgerTransactionType {
-  DEPOSIT
-  WITHDRAWAL
-  FEE_DEDUCTION
-  PROFIT
-  LOSS
-}
-
-model Ledger {
-  ledgerTransactionId   Int                   @id @default(autoincrement())
-  userId                Int
-  user                  User                  @relation(fields: [userId], references: [userId])
-  transactionAmount     Int
-  ledgerTransactionType LedgerTransactionType
-  createdAt             DateTime              @default(now())
-
-  @@index([userId, createdAt])
-}
-
-model IdemKey {
-  idemKey   String   @unique
-  userId    Int
-  user      User     @relation(fields: [userId], references: [userId])
-  response  String
-  createdAt DateTime @default(now())
-}
-
-enum OrderType {
-  BUY
-  SELL
+  orders Order[]
+  iKeys  iKey[]
 }
 
 model Order {
-  orderId        Int       @id @default(autoincrement())
-  userId         Int
-  user           User      @relation(fields: [userId], references: [userId])
-  pair           String
-  quantity       Int
-  openPrice      Int
-  closePrice     Int?
-  liquidatePrice Int
-  pnl            Int?
-  type           OrderType
-  createdAt      DateTime  @default(now())
+  orderId    String      @id @default(uuid())
+  userId     String
+  symbol     String
+  side       OrderSide
+  quantity   Int
+  leverage   Int
+  openPrice  Int
+  closePrice Int?
+  tp         Int?
+  sl         Int?
+  status     OrderStatus @default(PENDING) 
+  createdAt  DateTime    @default(now())
 
-  @@index([userId])
-  @@index([pair])
-  @@index([userId, pair])
-}
-
-
-
-enum TransactionType {
-  DEPOSIT
-  WITHDRAWAL
-  SETTLEMENT
-}
-
-enum TransactionStatus {
-  PENDING
-  FAILED
-  SUCCESS
+  user User @relation(fields: [userId], references: [userId])
 }
 
 model Transaction {
-  transactionId Int               @id @default(autoincrement())
-  userId        Int
-  user          User              @relation(fields: [userId], references: [userId])
-  type          TransactionType
+  transactionId String          @id @default(uuid())
+  userId        String
+  orderId       String?
   amount        Int
-  status        TransactionStatus
-  createdAt     DateTime          @default(now())
+  type          TransactionType
+  createdAt     DateTime        @default(now())
+}
 
-  @@index([userId])
+model iKey {
+  ikey      String   @unique
+  userId    String
+  response  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [userId])
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  FEE
+  PROFIT
+  LOSS
+  SWAP
+}
+
+enum OrderStatus {
+  PENDING
+  EXECUTED
+  COMPLETED
+  CANCEL
+}
+
+enum OrderSide {
+  BUY
+  SELL
 }
