@@ -11,9 +11,10 @@ export async function marketOrder(req: Request, res: Response) {
     if (!ikey || !symbol || !side || !quantity || !leverage) { res.status(404).json({ success: false, message: "missing required fields !" }) }
 
     // IDEMPOTENCY-CHECK
-    const isNewRequest = await redis.set(`marketOrder${ikey}`, "LOCKED", "NX", "EX", 300);
+    const isNewRequest = await redis.set(`marketOrder${ikey}`, "LOCKED", "EX", 300, "NX");
     if (!isNewRequest) {
         const response = await redis.get(`marketOrder${ikey}`)
+        if (!response) return res.status(404).json({ success: true, message: `ikey : ${ikey} is not a new req, for that response not found` })
         if (response !== "LOCKED") {
             res.status(200).json({ success: true, data: JSON.parse(response) })
         } else {

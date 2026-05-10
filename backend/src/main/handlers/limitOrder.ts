@@ -30,7 +30,7 @@ export async function limitOrder(req: Request, res: Response) {
             res.status(404).json({ success: false, message: "insufficient balance !" })
         }
 
-        const result = await prisma.$transaction(async(tx: any) => {
+        const result: { orderId: string, openPrice: number, status: string, createdAt: Date } = await prisma.$transaction(async (tx: any) => {
             tx.user.$queryRaw(`SELECT * FROM User WHERE userId = ${userId} FOR UPDATE`)
             tx.user.update({
                 where: { userId: userId },
@@ -54,7 +54,7 @@ export async function limitOrder(req: Request, res: Response) {
         const { orderId, openPrice, status, createdAt } = result;
 
         // PUSHING ORDER INTO REDIS FOR : LIMIT-ORDER-MATCHING ()
-        await redis.zadd(`${symbol}-${side}`, openPrice, `${orderId}-${userId}`)
+        await redis.zadd(`${symbol}-${side}`, `${openPrice}`, `${orderId},${userId}`)
 
         await redis.set(`limitOrder${ikey}`, JSON.stringify({ orderId, price: openPrice, createdAt }))
 

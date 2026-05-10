@@ -38,7 +38,7 @@ export const startPoller = async () => {
             case false:
                 // save chart data into db !
                 await prisma.candle.create({
-                    data:{
+                    data: {
 
                     }
                 })
