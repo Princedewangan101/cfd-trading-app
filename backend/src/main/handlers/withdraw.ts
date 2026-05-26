@@ -23,9 +23,9 @@ export async function withdraw(req: Request, res: Response) {
         let availableBalance;
 
         isAvailableBalanceInCache ?
-            availableBalance = isAvailableBalanceInCache
+            availableBalance = Number(isAvailableBalanceInCache)
             :
-            availableBalance = await prisma.user.findUnique({ where: { userId }, select: { availableBalance: true } })
+            availableBalance = Number(await prisma.user.findUnique({ where: { userId }, select: { availableBalance: true } }))
         await redis.set(`availableBalance:${userId}`, amount, "EX", 3600);
 
         if (Number(availableBalance) < amount) {

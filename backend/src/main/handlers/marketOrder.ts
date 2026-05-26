@@ -3,28 +3,33 @@ import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
 import { setIdemResponse } from '../util/updateIkey.js';
 import { OrderStatus } from '../../type/type.js';
+import { IdempotencyCheck } from '../util/IdempotencyCheck.js';
 
+// 1. IDEMPOTENCY CHECK.
+// 2. CHECKED THAT USER HAS ENOUGH AVAILABLE BALANCE OR NOT (IF AVAILABLE BALANCE IS NOT IN CACHE THEN, WE FETCH FROM DB AND USE IT, CACHE IT).
+// 3. ATOMIC TRANSACTION : DECREMENT AVAILABLE BALANCE, INCREMENT LOCK BALANCE IN USER TABLE, RECORD TRANSACTION, CREATE IKEY RECORD.
 
 export async function marketOrder(req: Request, res: Response) {
     const userId = "101";
     const { ikey, symbol, side, quantity, leverage } = req.body;
     if (!ikey || !symbol || !side || !quantity || !leverage) { res.status(404).json({ success: false, message: "missing required fields !" }) }
 
-    // IDEMPOTENCY-CHECK
     const isNewRequest = await redis.set(`marketOrder${ikey}`, "LOCKED", "EX", 300, "NX");
-    if (!isNewRequest) {
-        const response = await redis.get(`marketOrder${ikey}`)
-        if (!response) return res.status(404).json({ success: true, message: `ikey : ${ikey} is not a new req, for that response not found` })
-        if (response !== "LOCKED") {
-            res.status(200).json({ success: true, data: JSON.parse(response) })
-        } else {
-            res.status(400).json({ success: false, message: "duplicate request !" })
-        }
-    }
+    IdempotencyCheck(res, "marketOrder", isNewRequest, ikey, userId);
+
     try {
         const livePrice = Number(await redis.get(`LIVE-PRICE-${symbol}`));
-        const availableBalance = Number(await redis.get(`AVAILABLE-BALANCE-${userId}`));
-        const orderCost = quantity * (livePrice / leverage)
+        const orderCost = Number(quantity) * (Number(livePrice) / Number(leverage));
+        const fee = 0.20 // dollar per quantity
+        const orderCostWithFee = orderCost + (Number(quantity) * Number(fee))
+
+        let availableBalance;
+
+        const isAvailableBalanceInCache = await redis.get(`availableBalance:${userId}`)
+        isAvailableBalanceInCache ?
+            availableBalance = Number(isAvailableBalanceInCache)
+            :
+            availableBalance = Number(await prisma.user.findUnique({ where: { userId }, select: { availableBalance: true } }))
 
         const hasBalance = availableBalance >= orderCost ? true : false
         if (!hasBalance) {
@@ -32,21 +37,23 @@ export async function marketOrder(req: Request, res: Response) {
         }
 
         const result = await prisma.$transaction(async (tx: any) => {
-            tx.user.$queryRaw(`SELECT * FROM User WHERE userId = ${userId} FOR UPDATE`)
-            tx.user.update({
+            await tx.user.$queryRaw(`SELECT * FROM User WHERE userId = ${userId} FOR UPDATE`);
+            await tx.user.update({
                 where: { userId: userId },
-                data: { availableBalance: { decrement: orderCost }, lockedBalance: { increment: orderCost } }
-            })
-            tx.ikey.create({
-                data: { ikey, userId, response: "LOCKED" }
+                data: { availableBalance: { decrement: orderCostWithFee }, lockedBalance: { increment: orderCost } }
             })
 
-            return tx.order.create({
+            const transactionResult = await tx.order.create({
                 data: {
                     userId, symbol, side, quantity, leverage, openPrice: livePrice, closePrice: null, tp: null, sl: null,
                     status: OrderStatus.EXECUTION
                 }
             })
+            await tx.ikey.create({
+                data: { ikey, userId, response: JSON.stringify({ transactionResult }) }
+            })
+
+            return transactionResult;
         })
 
         if (!result) {
