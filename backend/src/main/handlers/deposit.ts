@@ -16,7 +16,11 @@ export async function deposit(req: Request, res: Response) {
     if (!isNewRequest) {
         const response = await redis.get(`deposit${ikey}`)
         if (response !== "LOCKED") {
-            res.status(200).json({ success: true, data: JSON.parse(response) })
+            if (!response) {
+                res.status(404).json({ success: false, message: "failed to save transaction result !" })
+            } else {
+                res.status(200).json({ success: true, data: JSON.parse(response) })
+            }
         } else {
             res.status(400).json({ success: false, message: "duplicate request !" })
         }
