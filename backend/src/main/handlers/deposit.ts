@@ -12,7 +12,7 @@ export async function deposit(req: Request, res: Response) {
     if (!ikey || !userId || !amount) { res.status(404).json({ success: false, message: "missing required fields !" }) }
 
     // IDEMPOTENCY-CHECK
-    const isNewRequest = await redis.set(`deposit${ikey}`, "LOCKED", "NX", "EX", 300);
+    const isNewRequest = await redis.set(`deposit${ikey}`, "LOCKED", "EX", 300, "NX");
     if (!isNewRequest) {
         const response = await redis.get(`deposit${ikey}`)
         if (response !== "LOCKED") {
@@ -22,26 +22,32 @@ export async function deposit(req: Request, res: Response) {
         }
     }
     try {
-        // 
         const result = await prisma.$transaction(async (tx: any) => {
+            tx.user.$queryRaw(`SELECT * FROM User WHERE userId = ${userId} FOR UPDATE`);
+            tx.user.update({
+                where: { userId: userId },
+                data: { availableBalance: { increment: amount } }
+            });
+            await redis.set(`availableBalance:${userId}`, amount, "EX", 900);
+            const transactionResult = await tx.transaction.create({
+                data: { userId, orderId: null, amount, type: TransactionType.DEPOSIT }
+            });
             await tx.ikey.create({
-                data: { ikey, userId, response: "LOCKED" }
-            })
-            return await tx.transaction.create({
-                data: { userId, orderId: null, type: TransactionType.DEPOSIT }
-            })
+                data: { ikey, userId, response: JSON.stringify({ transactionResult }) }
+            });
+            return transactionResult;
         })
         if (!result) {
             await setIdemResponse(ikey, userId, 'failed to deposit !')
-            res.status(404).json({ success: false, message: "failed to deposit !" })
+            return res.status(400).json({ success: false, message: "failed to deposit !" })
         }
-        await redis.incby(`AVAILABLE-BALANCE-${userId}`, amount)
-        res.status(400).json({ success: true, transactionId: result.transactionId, message: "failed to deposit !" })
+        // await redis.incrby(`AVAILABLE-BALANCE-${userId}`, amount)
+        return res.status(400).json({ success: true, transactionId: result.transactionId, message: "deposit successful" })
     } catch (error: any) {
         console.log("deposit ERROR : ", error.message);
         await redis.set(`deposit${ikey}`, `${error.message}`);
         await setIdemResponse(ikey, userId, `${error.message}`);
-        res.status(500).json({ success: false, message: "server error !" });
+        return res.status(500).json({ success: false, message: "server error !" });
     }
 }
 
