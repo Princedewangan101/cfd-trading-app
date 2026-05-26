@@ -63,8 +63,10 @@ export async function marketOrder(req: Request, res: Response) {
 
         const { orderId, openPrice, status, createdAt } = result;
 
+        // IDEM RESPONSE SET
         await redis.set(`marketOrder${ikey}`, JSON.stringify({ orderId, price: openPrice, createdAt }))
 
+        // IDEM RESPONSE SET (DATABASE)
         await setIdemResponse(ikey, userId, JSON.stringify({ orderId, price: openPrice, createdAt }))
 
         res.status(201).json({ success: true, data: { orderId, price: openPrice, status, createdAt } })
