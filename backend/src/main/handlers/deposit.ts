@@ -3,6 +3,7 @@ import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
 import { setIdemResponse } from '../util/updateIkey.js';
 import { TransactionType } from '../../type/type.js';
+import { depositeHandlerIdempotencyCheck } from '../util/depositeHandlerIdempotencyCheck.js';
 
 
 
@@ -13,18 +14,7 @@ export async function deposit(req: Request, res: Response) {
 
     // IDEMPOTENCY-CHECK
     const isNewRequest = await redis.set(`deposit${ikey}`, "LOCKED", "EX", 300, "NX");
-    if (!isNewRequest) {
-        const response = await redis.get(`deposit${ikey}`)
-        if (response !== "LOCKED") {
-            if (!response) {
-                res.status(404).json({ success: false, message: "failed to save transaction result !" })
-            } else {
-                res.status(200).json({ success: true, data: JSON.parse(response) })
-            }
-        } else {
-            res.status(400).json({ success: false, message: "duplicate request !" })
-        }
-    }
+    depositeHandlerIdempotencyCheck(res, isNewRequest, ikey, userId)
     try {
         const result = await prisma.$transaction(async (tx: any) => {
             tx.user.$queryRaw(`SELECT * FROM User WHERE userId = ${userId} FOR UPDATE`);

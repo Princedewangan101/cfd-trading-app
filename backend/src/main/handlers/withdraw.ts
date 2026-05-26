@@ -10,17 +10,21 @@ export async function withdraw(req: Request, res: Response) {
     if (!ikey || !userId || !amount) { res.status(404).json({ success: false, message: "missing required fields !" }) }
 
     // IDEMPOTENCY-CHECK
-    const isNewRequest = await redis.set(`withdraw${ikey}`, "LOCKED", "NX", "EX", 300);
+    const isNewRequest = await redis.set(`withdraw${ikey}`, "LOCKED", "EX", 300, "NX");
     if (!isNewRequest) {
         const response = await redis.get(`withdraw${ikey}`)
         if (response !== "LOCKED") {
-            res.status(200).json({ success: true, data: JSON.parse(response) })
+            if (!response) {
+                res.status(404).json({ success: false, message: "failed to save transaction result !" })
+            } else {
+                res.status(200).json({ success: true, data: JSON.parse(response) })
+            }
         } else {
             res.status(400).json({ success: false, message: "duplicate request !" })
         }
     }
     try {
-        const availableBalance = await redis.get(`AVAILABLE-BALANCE-${userId}`);
+        const availableBalance = await redis.get(`${userId}`);
 
         if (Number(availableBalance) < amount) {
             setIdemResponse(ikey, userId, "insufficient balance")
