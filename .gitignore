@@ -1,7 +1,8 @@
-zbook
-zlater
-TODO
+
 z.backend.txt
+z.redis.txt
+z.todo.txt
+
 # ==========================================
 # 1. Dependency Directories
 # ==========================================

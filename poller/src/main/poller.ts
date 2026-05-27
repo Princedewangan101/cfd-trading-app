@@ -33,15 +33,16 @@ export const startPoller = async () => {
             case true:
                 const price = (Number(parsedData.data.lastPrice)).toFixed(2)
                 await redis.set(`LIVE-PRICE-${parsedData.data.symbol}`, price)
+                await redis.lpush("liveprice", JSON.stringify({ symbol: parsedData.data.symbol, price: price }))
                 break;
 
             case false:
                 // save chart data into db !
-                await prisma.candle.create({
-                    data: {
+                // await prisma.candle.create({
+                //     data: {
 
-                    }
-                })
+                //     }
+                // })
                 break;
 
             default:

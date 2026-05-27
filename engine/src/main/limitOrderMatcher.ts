@@ -1,7 +1,7 @@
 import { redis } from "../config/redis.js";
 import { producer } from "../kafka/producer.js";
 import { topics, UpdateOrderType } from "../type/type.js";
-import { kafkaProducerSend } from "../utils/kafkaProducerSend.js";
+import { kafkaProducerSend } from "../kafka/kafkaProducerSend.js";
 
 declare module 'ioredis' {
     interface Redis {
