@@ -13,11 +13,14 @@ datasource db {
 }
 
 model User {
-  userId           String   @id @default(uuid())
-  availableBalance Int      @default(0)
-  lockedBalance    Int      @default(0)
-  isProfitable     Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  userId           String  @id @default(uuid())
+  availableBalance Int     @default(0)
+  lockedBalance    Int     @default(0)
+  isProfitable     Boolean @default(false)
+  pendingOrder     Int     @default(0)
+  activeOrder      Int     @default(0)
+  AccountOnTrade   Boolean @default(false)
+  createdAt DateTime @default(now())
 
   orders Order[]
   iKeys  iKey[]
@@ -34,7 +37,7 @@ model Order {
   closePrice Int?
   tp         Int?
   sl         Int?
-  status     OrderStatus @default(PENDING) 
+  status     OrderStatus @default(PENDING)
   createdAt  DateTime    @default(now())
 
   user User @relation(fields: [userId], references: [userId])
