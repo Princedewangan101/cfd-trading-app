@@ -1,0 +1,23 @@
+{
+  "name": "sltpengine",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "tsx node src/main/index.ts"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "ioredis": "^5.11.0",
+    "kafkajs": "^2.2.4",
+    "tsx": "^4.22.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/ioredis": "^4.28.10",
+    "@types/kafkajs": "^1.8.2"
+  }
+}
