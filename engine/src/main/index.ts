@@ -23,7 +23,6 @@ type SellOrder = {
 // 2. WHEN EVER THE PRICE GET CHANGE WE WILL RECEIVE A NEW PRICE IN QUEUE FROM POLLER SERVICE, WHEN LIVEPRICE === TRUE WE WILL FILTER ORDER FROM ARRAY WHOSE SYMBOL IS EQUAL TO THE SYMBOL OF CHANGED PRICE ASSET.
 // 3. WE SEND UPDATE_ORDER EVENT THAT WILL UPDATE ORDER STATUS IN BACKEND DATABASE. 
 // 4. WE SEND REALTIME UPDATE FOR ONLINE UPDATE AND NOTIFY EVENT FOR OFFLINE UPDATE VIA EMAIL.
-// 5. EDGE CASE : IF USER CANCEL LIMIT ORDER IN BACKEND BUT IF ENGINE THREAD IS AFTER LINE 66 THE ORDER WILL EXECUTE NO MATTER WHAT USER DOES IN BACKEND ? TO SOLVE THIS WE WILL CACHE THE CANCEL ORDER ID IN REDIS FOR 5 MIN AND IN ENGINE WILL CHECK THAT ORDER ID EXIST IN CACHE OR NOT, IF EXIST WE CANCEL THAT ORDER AND IF NOT EXIST THE PROCESS WILL CONTINUE AS NOTHING HAPPEN.  
 
 limitOrderMatcher()
 
@@ -33,6 +32,19 @@ async function limitOrderMatcher() {
         var slimitOrders: SellOrder[] = [];
 
         while (true) {
+            // REMOVING ORDERS OF THOSE USER WHOSE TOTAL BALANCE IS ABOUT TO 0.
+            const usersUserIdToCloseAllOrder = await redis.rpop("orderCloseBecauseOfLowBalance"); // "{userId: "userId"}"
+            if (!usersUserIdToCloseAllOrder) {
+                throw new Error("orderToClose not found");
+            }
+
+            const parsedUsersUserIdToCloseAllOrder = JSON.parse(usersUserIdToCloseAllOrder); // {userId: "userId"}
+            if (parsedUsersUserIdToCloseAllOrder) {
+                var blimitOrders = blimitOrders.filter((order: BuyOrder) => order.userId === parsedUsersUserIdToCloseAllOrder.userId)
+                var slimitOrders = slimitOrders.filter((order: SellOrder) => order.userId === parsedUsersUserIdToCloseAllOrder.userId)
+            }
+
+            // PUSHING LIMITORDER INTO ARRAY
             const order = await redis.rpop("limitOrderExecution");
             if (!order) {
                 throw new Error("order not found !");
@@ -50,20 +62,17 @@ async function limitOrderMatcher() {
             if (!orderToCancel) {
                 console.log('no order in queue to cancel (engine/index.ts)', orderToCancel);
             }
-            
+
             if (orderToCancel) {
                 const parsedOrderToCancel = JSON.parse(orderToCancel); // parsedOrderToCancel = {orderId:"uuid", side:"BUY|SELL"}
                 if (!parsedOrderToCancel) {
                     throw new Error("parsedOrderToCancel not found !");
                 }
                 if (parsedOrderToCancel.side === "BUY") {
-                    const newBuyLimitOrders = blimitOrders.filter((o: BuyOrder) => o.orderId !== parsedOrderToCancel.orderId);
-                    var blimitOrders = newBuyLimitOrders;
+                    var blimitOrders = blimitOrders.filter((o: BuyOrder) => o.orderId !== parsedOrderToCancel.orderId);
                 } else {
-                    const newSellLimitOrders = blimitOrders.filter((o: SellOrder) => o.orderId !== parsedOrderToCancel.orderId);
-                    var slimitOrders = newSellLimitOrders;
+                    var slimitOrders = blimitOrders.filter((o: SellOrder) => o.orderId !== parsedOrderToCancel.orderId);
                 }
-                await redis.set(`cancelOrder:${parsedOrderToCancel.orderId}`, "");
             }
 
             // PULLING LIVE PRICE FROM POLLER , livePrice:{symbol:"symbol", price:"price"}
@@ -77,40 +86,30 @@ async function limitOrderMatcher() {
                 if (parsedLivePrice) {
                     const validBuyOrderForExecution = blimitOrders.filter(o => o.symbol === parsedLivePrice.symbol && o.price > parsedLivePrice.price);
                     await Promise.all(validBuyOrderForExecution.map(async (order: BuyOrder) => {
+                        blimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
 
-                        const forCancelOrderExistInCache = await redis.get(`cancelOrder:${order.orderId}`);
-                        if (forCancelOrderExistInCache) {
-                            blimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
-                        } else {
-                            const updateOrderPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, openPrice: parsedLivePrice.price })
-                            const realtimeupdatePayload = JSON.stringify({ userId: order.userId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
-                            const notifyPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+                        const updateOrderPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, openPrice: parsedLivePrice.price })
+                        const realtimeupdatePayload = JSON.stringify({ userId: order.userId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+                        const notifyPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
 
-                            await kafkaProducerSend(topics.UPDATE_ORDER, updateOrderPayload)
-                            await kafkaProducerSend(topics.REAL_TIME_UPDATE, realtimeupdatePayload)
-                            await kafkaProducerSend(topics.NOTIFY_USER, notifyPayload);
+                        await kafkaProducerSend(topics.UPDATE_ORDER, updateOrderPayload)
+                        await kafkaProducerSend(topics.REAL_TIME_UPDATE, realtimeupdatePayload)
+                        await kafkaProducerSend(topics.NOTIFY_USER, notifyPayload);
 
-                            blimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
-                        }
-                    }))
+                    }));
 
                     const validSellOrderForExecution = slimitOrders.filter(o => o.symbol === parsedLivePrice.symbol && o.price < parsedLivePrice.price);
                     await Promise.all(validSellOrderForExecution.map(async (order: SellOrder) => {
-                        const forCancelOrderExistInCache = await redis.get("cancelOrder");
-                        if (forCancelOrderExistInCache) {
-                            blimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
-                        } else {
-                            const updateOrderPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, openPrice: parsedLivePrice.price })
-                            const realtimeupdatePayload = JSON.stringify({ userId: order.userId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
-                            const notifyPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+                        slimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
 
-                            await kafkaProducerSend(topics.UPDATE_ORDER, updateOrderPayload)
-                            await kafkaProducerSend(topics.REAL_TIME_UPDATE, realtimeupdatePayload)
-                            await kafkaProducerSend(topics.NOTIFY_USER, notifyPayload);
+                        const updateOrderPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, openPrice: parsedLivePrice.price })
+                        const realtimeupdatePayload = JSON.stringify({ userId: order.userId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+                        const notifyPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
 
-                            slimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
-                        }
-                    }))
+                        await kafkaProducerSend(topics.UPDATE_ORDER, updateOrderPayload)
+                        await kafkaProducerSend(topics.REAL_TIME_UPDATE, realtimeupdatePayload)
+                        await kafkaProducerSend(topics.NOTIFY_USER, notifyPayload);
+                    }));
                 }
             }
         }
