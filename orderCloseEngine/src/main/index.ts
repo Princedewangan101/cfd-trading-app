@@ -16,7 +16,6 @@ export type OrderToClose = {
     userId: "string",
 }
 
-
 const orderToCloseArray: OrderToClose[] = []; //[{closeType:"sl"/"tp", price:23303, symbol:"SOLUSD", side:"BUY"/"SIDE", orderId:"orderId",  userId:"userId"}]
 
 orderCloseExecutor()
@@ -52,8 +51,11 @@ async function orderCloseExecutor() {
                     (order.closeType === "tp" && order.side === "SELL" && order.price > parsedLivePrice)
                 )
                 await Promise.all(
-                    filteredOrderToClose.map((order: OrderToClose) => {
+                    filteredOrderToClose.map(async (order: OrderToClose) => {
                         const payload = JSON.stringify({ from: "orderCloseEngine", orderObj: order })
+                        // FOR CLOSING/REMOVING ORDER IN IN MEMORY ARRAY
+                        await redis.lpush("orderToCancel", JSON.stringify({ orderId: order.orderId, side: order.side }))
+                        // FOR UPDATING ORDER STSTUS FROM EXECUTION TO COMPLTED
                         kafkaProducerSend(topics.UPDATE_ORDER, payload);
                     })
                 )
