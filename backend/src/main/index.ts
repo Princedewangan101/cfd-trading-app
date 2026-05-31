@@ -10,7 +10,7 @@ app.use(express.json())
 // startPoller();
 
 app.use('/order', orderRoutes);
-app.use('/onramp', onrampRoutes);
+app.use('/ramp', onrampRoutes);
 app.use('/user', userRoutes);
 
 const port = 5000;
