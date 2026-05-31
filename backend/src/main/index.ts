@@ -9,8 +9,6 @@ const app = express();
 app.use(express.json())
 // startPoller();
 
-app.get("/", (res:Response) => { res.json({ message: "server running at 5000 !" }); });
-
 app.use('/order', orderRoutes);
 app.use('/onramp', onrampRoutes);
 app.use('/user', userRoutes);
