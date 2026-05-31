@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express, { type Request, type Response } from "express";
+import express from "express";
 import orderRoutes from './routes/orderRoutes.js'
 import onrampRoutes from "./routes/onrampRoute.js";
 import userRoutes from "./routes/userRoutes.js";
