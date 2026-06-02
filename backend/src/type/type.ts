@@ -1,17 +1,17 @@
 export enum OrderStatus {
-    'PENDING',
-    'EXECUTION',
-    'COMPLETED',
-    'CANCEL'
-} 
+  PENDING = 'PENDING',
+  EXECUTION = 'EXECUTION',
+  COMPLETED = 'COMPLETED',
+  CANCEL = 'CANCEL'
+}
 
 export enum TransactionType {
-  "DEPOSIT",
-  "WITHDRAW",
-  "FEE",
-  "PROFIT",
-  "LOSS",
-  "SWAP",
+  DEPOSIT = "DEPOSIT",
+  WITHDRAW = "WITHDRAW",
+  FEE = "FEE",
+  PROFIT = "PROFIT",
+  LOSS = "LOSS",
+  SWAP = "SWAP",
 }
 
 export enum OrderSide {
