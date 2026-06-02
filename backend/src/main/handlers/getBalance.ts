@@ -7,14 +7,18 @@ export async function balance(req: Request, res: Response) {
     if (!userId) { res.status(404).json({ success: false, message: "missing required fields !" }) }
 
     try {
-        const result = await prisma.transaction.agregate({
-            where: { userId },
-            _sum: { amount: true }
-        })
-        await redis.set(`TOTAL-BALANCE-${userId}`, `${result._sum.amount}`)
-
-        res.status(200).json({ success: true, totalBalance: result._sum.amount })
-
+        const totalBalance = await redis.get(`totalBalance:${userId}`);
+        if (totalBalance) {
+            const parseTotalBalance = JSON.stringify(totalBalance);
+            res.status(200).json({ success: true, totalBalance: Number(parseTotalBalance), });
+        } else {
+            const result = await prisma.transaction.aggregate({
+                where: { userId },
+                _sum: { amount: true }
+            })
+            await redis.set(`totalBalance:${userId}`, `${result._sum.amount}`, "EX", 3600);
+            res.status(200).json({ success: true, totalBalance: result._sum.amount });
+        }
     } catch (error: any) {
         console.log("deposit ERROR : ", error.message);
         res.status(500).json({ success: false, message: "server error !" });

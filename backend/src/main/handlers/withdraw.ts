@@ -1,24 +1,21 @@
 import { type Request, type Response } from 'express';
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
-import { setIdemResponse } from '../util/updateIkey.js';
+import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
 import { TransactionType } from '../../type/type.js';
-import { IdempotencyCheck } from '../util/IdempotencyCheck.js';
+import { check } from '../util/IdempotencyCheck.js';
 
-// 1. IDEMPOTENCY CHECK.
-// 2. CHECKED THAT USER HAS ENOUGH AVAILABLE BALANCE OR NOT (IF AVAILABLE BALANCE IS NOT IN CACHE THEN, WE FETCH FROM DB AND USE IT, CACHE IT).
-// 3. ATOMIC TRANSACTION : DECREMENT AVAILABLE BALANCE IN USER TABLE, RECORD TRANSACTION, CREATE IKEY RECORD.
 
 export async function withdraw(req: Request, res: Response) {
-    const userId = "101";
+    const userId = "7dda8668-3247-4111-884c-ec8092035851";
     const { ikey, amount } = req.body;
-    if (!ikey || !userId || !amount) { res.status(404).json({ success: false, message: "missing required fields !" }) }
-
-    const isNewRequest = await redis.set(`withdraw${ikey}`, "LOCKED", "EX", 300, "NX");
-    IdempotencyCheck(res, "withdraw", isNewRequest, ikey, userId)
+    if (!ikey || !userId || !amount) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
 
     try {
+        await check(res, ikey, userId, "withdraw");
+
         const isAvailableBalanceInCache = await redis.get(`availableBalance:${userId}`);
+        console.log("isAvailableBalanceInCache", isAvailableBalanceInCache);
 
         let availableBalance;
 
@@ -26,35 +23,39 @@ export async function withdraw(req: Request, res: Response) {
             availableBalance = Number(isAvailableBalanceInCache)
             :
             availableBalance = Number(await prisma.user.findUnique({ where: { userId }, select: { availableBalance: true } }))
-        await redis.set(`availableBalance:${userId}`, amount, "EX", 3600);
 
-        if (Number(availableBalance) < amount) {
-            setIdemResponse(ikey, userId, "insufficient balance");
-            return res.status(400).json({ success: false, message: "insufficient balance" });
+        await redis.set(`availableBalance:${userId}`, String(amount), "EX", 3600);
+
+        if (Number(availableBalance) < Number(amount)) {
+            await setIdemResponse(ikey, userId, `Insufficient balance`);
+            return res.status(400).json({ success: false, message: "Insufficient balance." });
         }
 
         const result = await prisma.$transaction(async (tx: any) => {
-            tx.user.$queryRaw(`SELECT * FROM User WHERE userId = ${userId} FOR UPDATE`);
-            const availableBalance = await tx.user.update({ where: { userId }, data: { availableBalance: { decrement: amount } } });
-            await redis.decrby(`availableBalance:${userId}`, String(availableBalance));
+            await tx.$queryRaw`SELECT * FROM "User" WHERE "userId" = ${userId} FOR UPDATE`;
+            const updateBalanceResult = await tx.user.update({ where: { userId }, data: { availableBalance: { decrement: Number(amount) } } });
 
             const transactionResult = await tx.transaction.create({
-                data: { userId, orderId: null, type: TransactionType.WITHDRAW }
+                data: { userId, orderId: "-", type: TransactionType.WITHDRAW, amount }
             });
-            await tx.ikey.create({
-                data: { ikey, userId, response: JSON.stringify({ response: transactionResult }) }
-            });
-            return transactionResult;
+            return { transactionId: transactionResult.transactionId, availableBalance: updateBalanceResult.availableBalance };
+        }, {
+            maxWait: 5000,
+            timeout: 10000,
         })
+
+        await setIdemResponse(ikey, userId, `transactionId : ${result.transactionId}`);
+        console.log('result :', result);
+        await redis.set(`availableBalance:${userId}`, String(result.availableBalance), "EX", 3600);
+
         if (!result) {
-            setIdemResponse(ikey, userId, 'failed to withdraw !');
-            res.status(400).json({ success: false, message: "failed to withdraw !" });
+            await setIdemResponse(ikey, userId, "Failed to withdraw.");
+            return res.status(400).json({ success: false, message: "Failed to withdraw." });
         }
-        res.status(400).json({ success: true, transactionId: result.transactionId, message: "failed to withdraw !" });
+        return res.status(200).json({ success: true, transactionId: result.transactionId, message: "Withdrawal successful." });
     } catch (error: any) {
-        console.log("withdraw ERROR : ", error.message);
-        await redis.set(`withdraw${ikey}`, `${error.message}`);
+        console.log("\nERROR (withdraw): ", error.message);
         await setIdemResponse(ikey, userId, `${error.message}`);
-        res.status(500).json({ success: false, message: "server error !" });
+        return res.status(500).json({ success: false, message: `${error.message}` });
     }
 }
