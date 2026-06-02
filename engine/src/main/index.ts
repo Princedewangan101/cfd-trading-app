@@ -45,7 +45,7 @@ async function limitOrderMatcher() {
             }
 
             // PUSHING LIMITORDER INTO ARRAY
-            const order = await redis.rpop("limitOrderExecution");
+            const order = await redis.rpop("limitOrders");
             if (!order) {
                 throw new Error("order not found !");
             }
