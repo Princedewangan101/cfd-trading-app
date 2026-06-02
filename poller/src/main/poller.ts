@@ -31,7 +31,7 @@ export const startPoller = async () => {
 
         switch (startswithticker) {
             case true:
-                const price = (Number(parsedData.data.lastPrice)).toFixed(2)
+                const price = String(((Number((Number(parsedData.data.lastPrice)).toFixed(2))) * 100))
                 await redis.set(`LIVE-PRICE-${parsedData.data.symbol}`, price)
                 await redis.lpush("liveprice", JSON.stringify({ symbol: parsedData.data.symbol, price: price }))
                 break;
