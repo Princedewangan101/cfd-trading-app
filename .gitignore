@@ -1,7 +1,15 @@
 
-z.backend.txt
 z.redis.txt
 z.todo.txt
+
+
+poller/prisma/migrations
+poller/src/generated
+poller/.env
+poller/package-lock.json
+poller/package.json
+poller/prisma.config.ts
+poller/node_modules
 
 # ==========================================
 # 1. Dependency Directories
