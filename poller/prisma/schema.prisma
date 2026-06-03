@@ -1,0 +1,44 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+//   data: {
+//     E: 1778075355073985,
+//     e: 'kline',
+//     s: 'ETH_USDC',
+//     T: '2026-05-06T13:50:00',
+//     X: false,
+//     c: '2371.770000000',
+//     h: '2371.770000000',
+//     l: '2370.610000000',
+//     n: 5,
+//     o: '2370.610000000',
+//     t: '2026-05-06T13:49:00',
+//     v: '0.2650000'
+//   },
+
+model Candle {
+  candleStickId String @unique @id @default(uuid())
+  eventType     String
+  eventTime     BigInt   
+  symbol        String
+  openTime      String
+  closeTime     String
+  openPrice     String
+  closePrice    String
+  highPrice     String
+  lowPrice      String
+  volume        String
+  isClose       Boolean
+  noOfTrade     Int
+}
