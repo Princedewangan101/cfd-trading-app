@@ -1,1 +1,0 @@
-1.useActionState isPending is managed directly by React's engine, meaning it automatically resets to false even if the server action encounters a network timeout or unexpected error where as useState dont.

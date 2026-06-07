@@ -14,7 +14,7 @@ const BalanceBox = () => {
   const availableBalance = useAppStore((state) => state.availableBalance)
   const lockedBalance = useAppStore((state) => state.lockedBalance)
 
-  console.log(`\n\ntotalBal : ${totalBalance}\n availableBal: ${availableBalance}\n lockedBal : ${lockedBalance}`);
+  console.log(`\n\ntotalBal : ${totalBalance}\navailableBal: ${availableBalance}\nlockedBal : ${lockedBalance}`);
 
 
   async function fetchBalance() {
