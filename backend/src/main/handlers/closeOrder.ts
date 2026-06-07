@@ -94,6 +94,6 @@ export async function closeOrder(req: Request, res: Response) {
         return res.status(200).json({ success: true, data: { success: true, data: {orderId, status, closePrice, messaage:"Order close successfully."} } })
     } catch (error: any) {
         console.log("ERROR (closeOrder.ts) : ", error.message);
-        return res.status(500).json({ success: false, message: `${error.message}` });
+        return res.status(500).json({ success: false, message: `Server error !` });
     }
 }

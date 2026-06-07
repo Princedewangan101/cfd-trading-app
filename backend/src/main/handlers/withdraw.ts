@@ -56,6 +56,6 @@ export async function withdraw(req: Request, res: Response) {
     } catch (error: any) {
         console.log("\nERROR (withdraw): ", error.message);
         await setIdemResponse(ikey, userId, `${error.message}`);
-        return res.status(500).json({ success: false, message: `${error.message}` });
+        return res.status(500).json({ success: false, message: `Server error !` });
     }
 }

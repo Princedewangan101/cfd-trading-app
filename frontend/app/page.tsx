@@ -1,11 +1,18 @@
-import Image from "next/image";
-import Charts from "./components/Charts";
+
+import Appbar from "@/components/appComponents/Appbar";
+import Corousal from "@/components/appComponents/homePageComponents/Corousal";
+import Symbols from "@/components/appComponents/homePageComponents/Symbols";
+import { useAppStore } from "@/store/store";
 
 export default function Home() {
+
+
+
   return (
     <div>
-      home
-      <Charts/>
+<Appbar/>
+      <Corousal />
+      <Symbols />
     </div>
   );
 }

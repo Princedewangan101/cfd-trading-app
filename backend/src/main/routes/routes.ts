@@ -8,19 +8,20 @@ import { modify } from '../handlers/modify.js';
 import { closeOrder } from '../handlers/closeOrder.js';
 import { limitOrder } from '../handlers/limitOrder.js';
 import { marketOrder } from '../handlers/marketOrder.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = Router()
 
-router.get('/balance', balance)
+router.get('/balance', authMiddleware, balance)
 
-router.post('/market', marketOrder)
-router.post('/limit', limitOrder)
-router.post('/close', closeOrder)
-router.post('/modify', modify)
+router.post('/market', authMiddleware, marketOrder)
+router.post('/limit', authMiddleware, limitOrder)
+router.post('/close', authMiddleware, closeOrder)
+router.post('/modify', authMiddleware, modify)
 
 
-router.post('/deposit', deposit)
-router.post('/withdraw', withdraw)
+router.post('/deposit', authMiddleware, deposit)
+router.post('/withdraw', authMiddleware, withdraw)
 
 router.post('/signin', signin)
 router.post('/signup', signup)

@@ -48,7 +48,7 @@ export async function deposit(req: Request, res: Response) {
         await redis.set(`deposit${ikey}`, `${error.message}`);
         await setIdemResponse(ikey, userId, `${error.message}`);
         console.log("------------------error");
-        return res.status(500).json({ success: false, message: `${error.message}` });
+        return res.status(500).json({ success: false, message: `Server error !` });
     }
 }
 

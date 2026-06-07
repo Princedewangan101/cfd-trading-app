@@ -7,10 +7,13 @@ import { OrderStatus } from '../../generated/prisma/client.js';
 
 
 export async function marketOrder(req: Request, res: Response) {
-    const userId = "7dda8668-3247-4111-884c-ec8092035851";
+    console.log("marketOrder 1");
+
+    const userId = req.userId;
+    console.log("userId :", userId);
     const { ikey, symbol, side, quantity, leverage } = req.body;
     if (!ikey || !symbol || !side || !quantity || !leverage) { return res.status(404).json({ success: false, message: "missing required fields !" }) }
-
+    console.log(2);
     try {
         await check(res, ikey, userId, "marketOrder");
 
@@ -39,7 +42,7 @@ export async function marketOrder(req: Request, res: Response) {
         if (!availableBalance) {
             return res.status(404).json({ success: false, message: "Available balance not found." })
         }
-
+        console.log(3);
         const hasBalance = Number(availableBalance) >= Number(orderCost) ? true : false
 
         if (!hasBalance) {
@@ -56,7 +59,7 @@ export async function marketOrder(req: Request, res: Response) {
 
             const transactionResult = await tx.order.create({
                 data: {
-                    userId, symbol, side, quantity, leverage, openPrice: livePrice, closePrice: null, tp: null, sl: null,
+                    userId, symbol, side, quantity: Number(quantity), leverage: Number(leverage), openPrice: livePrice, closePrice: null, tp: null, sl: null,
                     status: OrderStatus.EXECUTED
                 }
             })
@@ -67,19 +70,19 @@ export async function marketOrder(req: Request, res: Response) {
             await setIdemResponse(ikey, userId, 'Failed to create order.')
             return res.status(404).json({ success: false, message: "Failed to create order." })
         }
-        
+        console.log(4);
         await redis.set(`availableBalance:${userId}`, String(result.availableBalance), "EX", 3600);
 
         const { orderId, openPrice, status, createdAt } = result.transactionResult;
 
         await setIdemResponse(ikey, userId, JSON.stringify({ orderId, price: openPrice, createdAt }))
         console.log("---------------complete");
-        return res.status(201).json({ success: true, data: { orderId, price: openPrice, status, createdAt } })
+        return res.status(200).json({ success: true, data: { orderId, price: openPrice, status, createdAt } })
 
     } catch (error: any) {
         console.log("ERROR (marketOrder) : ", error.message);
         await setIdemResponse(ikey, userId, `${error.message}`)
         console.log("---------------error");
-        return res.status(500).json({ success: false, message: `${error.message}` })
+        return res.status(500).json({ success: false, message: `Server error !` })
     }
 } 
