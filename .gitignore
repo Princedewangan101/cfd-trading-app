@@ -3,6 +3,8 @@ z.redis.txt
 z.todo.txt
 
 
+frontend/z.todo.txt
+
 poller/prisma/migrations
 poller/src/generated
 poller/.env
