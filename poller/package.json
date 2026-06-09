@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/main/server.ts",
     "start": "tsx src/main/server.ts",
-    "proto": "proto-loader-gen-types --longs=String --enums=String --defaults --oneofs --grpcLib=@grpc/grpc-js --outDir=proto/ proto/candle.proto"
+    "proto": "proto-loader-gen-types --longs=String --enums=String --defaults --oneofs --grpcLib=@grpc/grpc-js --outDir=src/proto/ src/proto/candle.proto"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.4",

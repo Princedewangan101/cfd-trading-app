@@ -14,7 +14,7 @@ import { candles } from '../handlers/getCandles.js';
 const router = Router()
 
 router.get('/balance', authMiddleware, balance)
-router.get('/candles/:symbol/:timeFrames', authMiddleware, candles)
+router.get('/candles/:symbol/:timeFrame', candles)
 
 router.post('/market', authMiddleware, marketOrder)
 router.post('/limit', authMiddleware, limitOrder)

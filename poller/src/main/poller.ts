@@ -49,7 +49,7 @@ export const startPoller = async () => {
 
 
             if (isClose === true && parsedData.data.c) {
-                console.log("\nparsedData :", parsedData);
+                // console.log("\nparsedData :", parsedData);
                 const newCandle = await prisma.candle.create({
                     data: {
                         eventType: parsedData.data.e,
@@ -70,7 +70,7 @@ export const startPoller = async () => {
                     console.log("\nERROR (poller.ts) :", newCandle);
                     throw new Error("Failed to save candle in db.");
                 }
-                console.log("\nnewCandle :", newCandle);
+                // console.log("\nnewCandle :", newCandle);
             }
 
         } catch (error: any) {

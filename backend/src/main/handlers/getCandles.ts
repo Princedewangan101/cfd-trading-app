@@ -1,9 +1,9 @@
 import { response, type Request, type Response } from 'express';
-import { getCandles } from '../grpc/getCandles';
+import { getCandles } from '../../grpc/getCandles';
 import { redis } from '../../config/redis';
 
 export async function candles(req: Request, res: Response) {
-    // console.log("\n\n>> /api/candles");
+    console.log("\n\n>> /api/candles");
     const { symbol, timeFrame } = req.params
 
     if (!symbol || !timeFrame) {
@@ -12,20 +12,24 @@ export async function candles(req: Request, res: Response) {
 
     try {
         const candles = await redis.get(`symbol:${symbol},timeFrame:${timeFrame}`)
-        // console.log("> candles (redis) :", candles);
+        console.log("> candles (redis) :", candles);
 
         if (candles) {
             const parseCandles = JSON.parse(candles);
             return res.status(500).json({ success: false, response: parseCandles })
         } else {
-            // console.log("> MAKING GRPC CALL ... ");
+            console.log("> MAKING GRPC CALL ... ");
 
             const grpcResponse = await getCandles(symbol, timeFrame)
             console.log("> grpcResponse :", grpcResponse);
 
+            if (!grpcResponse) {
+                return res.status(500).json({ success: false, message: "failed to fetch candle !" })
+            }
+
             // await redis.set(`symbol:${symbol},timeFrame:${timeFrame}`, grpcResponse, "EX", 3600)
 
-            // return res.status(500).json({ success: false,  })
+            return res.status(500).json({ success: true, candles: grpcResponse.candles })
         }
     } catch (error: any) {
         console.log("> ERROR (/api/candles) :", error.message);

@@ -1,4 +1,4 @@
-// Original file: proto/candle.proto
+// Original file: src/proto/candle.proto
 
 
 export interface CandleRequest {

@@ -1,9 +1,9 @@
-// Original file: proto/candle.proto
+// Original file: src/proto/candle.proto
 
 import type * as grpc from '@grpc/grpc-js'
 import type { MethodDefinition } from '@grpc/proto-loader'
-import type { CandleRequest as _candles_CandleRequest, CandleRequest__Output as _candles_CandleRequest__Output } from './CandleRequest';
-import type { CandleResponse as _candles_CandleResponse, CandleResponse__Output as _candles_CandleResponse__Output } from './CandleResponse';
+import type { CandleRequest as _candles_CandleRequest, CandleRequest__Output as _candles_CandleRequest__Output } from '../candles/CandleRequest';
+import type { CandleResponse as _candles_CandleResponse, CandleResponse__Output as _candles_CandleResponse__Output } from '../candles/CandleResponse';
 
 export interface CandleServiceClient extends grpc.Client {
   GetCandles(argument: _candles_CandleRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_candles_CandleResponse__Output>): grpc.ClientUnaryCall;

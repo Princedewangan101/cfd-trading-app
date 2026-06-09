@@ -1,4 +1,4 @@
-// Original file: proto/candle.proto
+// Original file: src/proto/candle.proto
 
 import type { Long } from '@grpc/proto-loader';
 

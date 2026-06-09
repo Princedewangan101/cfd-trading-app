@@ -1,7 +1,8 @@
 import "dotenv/config";
 import express, {type Request, type Response} from "express";
 import { startPoller } from "./poller";
-
+import * as grpc from '@grpc/grpc-js';
+import { initGrpc } from "../grpc/server";
 
 const app = express();
 // app.use(cors())
@@ -16,3 +17,6 @@ const port = 5002;
 app.listen(port, () => {
   console.log(`server running at ${port}`);
 });
+
+const server = new grpc.Server();
+initGrpc(server)

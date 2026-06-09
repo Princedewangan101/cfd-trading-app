@@ -1,6 +1,6 @@
-// Original file: proto/candle.proto
+// Original file: src/proto/candle.proto
 
-import type { Candle as _candles_Candle, Candle__Output as _candles_Candle__Output } from './Candle';
+import type { Candle as _candles_Candle, Candle__Output as _candles_Candle__Output } from '../candles/Candle';
 
 export interface CandleResponse {
   'candles'?: (_candles_Candle)[];

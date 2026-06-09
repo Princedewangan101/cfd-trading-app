@@ -1,8 +1,8 @@
 import * as protoLoader from '@grpc/proto-loader'
 import * as grpc from '@grpc/grpc-js'
-import type { ProtoGrpcType } from '../../proto/candle'
+import type { ProtoGrpcType } from '../proto/candle';
 
-const packageDefination = protoLoader.loadSync('proto/candle.proto', {
+const packageDefination = protoLoader.loadSync('src/proto/candle.proto', {
     keepCase: true,
     longs: String,
     enums: String,
