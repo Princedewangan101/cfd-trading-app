@@ -17,18 +17,14 @@ message CandleResponse {
 }
 
 message Candle {
-   string eventType = 1;
-   int64 eventTime = 2;
-   string symbol = 3;
-   string openTime =4; 
-   string closeTime =5; 
-   string openPrice = 6;
-   string closePrice = 7;
-   string highPrice = 8;
-   string lowPrice = 9;
-   string volume = 10;
-   string isClose = 11;
-   int32 noOfTrade = 12;
-   string candleStickId = 13;
+   string candleStickId = 1;
+   string symbol = 2;
+   string timeFrame = 3;
+   int64 time = 4;
+   double open = 6;
+   double close = 7;
+   double high = 8;
+   double low = 9;
+   double volume = 10;
 }
 

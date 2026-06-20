@@ -8,60 +8,24 @@ import { fetchOlderData } from "@/app/utils/fetchOlderData";
 import { debounce } from "@/app/utils/deBounce";
 import { updateCandle } from "@/app/utils/candleUpdate";
 import { chartAdjuster, timeFrame } from "@/lib/timeFrames";
+import { useAppStore } from "@/store/store";
 
 
-const Charts = () => {
+const Charts = ({ symbol }: { symbol: string }) => {
 
+  const isChartReady = useRef<boolean>(false)
+
+  const symbolWithoutSlash = symbol;  // BTCUSD   <- no slash
+  const symbolWithSlash = `${symbolWithoutSlash.slice(0, -3)}/USD`
+  const symbolWithUnderScore = `${symbolWithoutSlash.slice(0, -3)}_USD`
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  const [symbol, setSymbol] = React.useState<'Sol/Usd' | "Btc/Usd" | "Eth/Usd" | null>(null);
   const [isFetching, setIsFetching] = React.useState<boolean>(false);
 
-
-
-  // 3. Prepare Dummy Data
-  // const dummyData = [
-  //   { time: "2024-05-01", open: 150.00, high: 155.00, low: 148.00, close: 152.50 },
-  //   { time: "2024-05-02", open: 152.50, high: 160.00, low: 151.00, close: 158.20 },
-  //   { time: "2024-05-03", open: 158.20, high: 165.00, low: 157.00, close: 162.10 },
-  //   { time: "2024-05-04", open: 162.10, high: 163.00, low: 155.00, close: 156.40 },
-  //   { time: "2024-05-05", open: 156.40, high: 160.00, low: 154.00, close: 159.00 },
-  // ];
   const dummyData = [
-    { time: "2024-05-01", open: 150.00, high: 155.00, low: 148.00, close: 152.50 },
-    { time: "2024-05-02", open: 152.50, high: 160.00, low: 151.00, close: 158.20 },
-    { time: "2024-05-03", open: 158.20, high: 165.00, low: 157.00, close: 162.10 },
-    { time: "2024-05-04", open: 162.10, high: 163.00, low: 155.00, close: 156.40 },
-    { time: "2024-05-05", open: 156.40, high: 160.00, low: 154.00, close: 159.00 },
-    ...(() => {
-      const list = [];
-      let currentClose = 159.00;
-      let currentDate = new Date("2024-05-06");
-
-      for (let i = 0; i < 295; i++) { // 295 generated + 5 initial = 300 total
-        const open = currentClose;
-
-        // Simulate market noise/volatility
-        const change = (Math.random() - 0.49) * 6.5;
-        const close = Number((open + change).toFixed(2));
-
-        const highVar = Math.random() * 3.0;
-        const lowVar = Math.random() * 3.0;
-
-        const high = Number((Math.max(open, close) + highVar).toFixed(2));
-        const low = Number((Math.min(open, close) - lowVar).toFixed(2));
-
-        // Format date to ISO string standard YYYY-MM-DD
-        const time = currentDate.toISOString().split('T')[0];
-
-        list.push({ time, open, high, low, close });
-
-        // Advance by 1 calendar day
-        currentClose = close;
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-      return list;
-    })()
+    { time: 1717243740, open: 150.00, high: 155.00, low: 148.00, close: 152.50 }, // 2024-06-01 12:09:00 UTC
+    { time: 1717243800, open: 152.50, high: 160.00, low: 151.00, close: 158.20 }, // 2024-06-01 12:10:00 UTC
+    { time: 1717243860, open: 158.20, high: 165.00, low: 157.00, close: 162.10 }  // 2024-06-01 12:11:00 UTC
   ];
 
   const barColour = {
@@ -80,10 +44,13 @@ const Charts = () => {
         background: { type: ColorType.Solid, color: "#09090b" },
         textColor: "gray",
       },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+      },
       width: chartContainerRef.current.clientWidth,
       height: 508,
     })
-
 
     chart.applyOptions({
       grid: {
@@ -98,12 +65,65 @@ const Charts = () => {
 
     const candlestickSeries = chart.addSeries(CandlestickSeries, barColour);
 
-    candlestickSeries.setData([...dummyData]);
+    //  FETCH DATA FROM DB
+    console.log("FETCH DATA FROM DB...");
 
-    // TODO: HAVE TO FETCH DATA FROM DB
-    // loadInitialData(candlestickSeries);
+    initCandleData()
 
-    const socket = updateCandle(candlestickSeries, symbol)
+    async function initCandleData() {
+      const candleData = await loadInitialData(symbolWithUnderScore, timeFrame);
+      // console.log(">>", candleData);
+      const formattedData = candleData.map((candle) => {
+        return {
+          time: Number(candle.time),
+          open: Number(candle.open),
+          high: Number(candle.high),
+          low: Number(candle.low),
+          close: Number(candle.close),
+        };
+      });
+      formattedData.sort((a, b) => a.time - b.time)
+
+      candlestickSeries.setData([...formattedData]);
+
+      isChartReady.current = true
+    }
+
+    const socket = updateCandle(symbolWithUnderScore)
+
+    async function updateCandle(symbol) {
+      if (!process.env.NEXT_PUBLIC_BACKPACK_URL) { throw new Error("NEXT_PUBLIC_BACKPACK_URL not found !!!"); }
+      const ws: WebSocket = new WebSocket(process.env.NEXT_PUBLIC_BACKPACK_URL)
+
+      ws.onopen = () => {
+        ws.send(
+          JSON.stringify({
+            method: "SUBSCRIBE",
+            params: [`kline.1m.${symbol}C`],
+            id: 1,
+          })
+        );
+      };
+
+      ws.onmessage = async (e: any) => {
+        const parsedData = JSON.parse(e.data);
+        const { o, h, l, c, t } = parsedData.data;
+        const time = Number(Math.floor(new Date(t).getTime() / 1000))
+        console.log("> t (ws) :", time);
+
+        if (isChartReady.current) {
+          candlestickSeries.update({
+            time: time as any,
+            open: Number(o),
+            high: Number(h),
+            low: Number(l),
+            close: Number(c),
+          })
+        }
+      };
+
+      return ws
+    }
 
     // HANDLE LOADING OF OLDER CHART DATA
     const debouncedScroll = debounce(handleScrollLeftOfChart, 1000)
@@ -137,13 +157,13 @@ const Charts = () => {
     return () => {
       window.removeEventListener("resize", handleResize);
       chart.remove();
-      socket.then((ws) => { ws.close() })
+      // socket.then((ws) => { ws.close() })
     }
   }
 
   useEffect(() => {
     chart()
-  }, [symbol]);
+  }, [symbolWithoutSlash]);
 
 
   return (
@@ -158,7 +178,7 @@ const Charts = () => {
       </div>
       <div className="absolute z-10 top-0 left-1/2 -translate-x-1/2">
 
-          indicator
+        indicator
 
       </div>
 
@@ -167,7 +187,7 @@ const Charts = () => {
         <div className="h-full flex gap-1 ml-3">
           {
             timeFrame.map((tf) => (
-              <div key={tf} className="flex items-center justify-center text-sm p-1 w-8  h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer">
+              <div onClick={() => { useAppStore.setState({ timeFrame: tf }) }} key={tf} className="flex items-center justify-center text-sm p-1 w-8  h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer">
                 {tf}
               </div>
             ))

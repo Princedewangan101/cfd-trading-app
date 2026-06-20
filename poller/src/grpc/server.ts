@@ -21,7 +21,7 @@ export function initGrpc(server: any) {
             console.error(`> Server failed to bind: ${err.message}`);
             return;
         }
-        console.log(`> Poller gRPC Server listening on port ${port}`);
+        console.log(`> gRPC server listening on port = ${port}`);
     })
 
 
