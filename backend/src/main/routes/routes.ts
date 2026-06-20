@@ -9,10 +9,12 @@ import { closeOrder } from '../handlers/closeOrder.js';
 import { limitOrder } from '../handlers/limitOrder.js';
 import { marketOrder } from '../handlers/marketOrder.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
+import { candles } from '../handlers/getCandles.js';
 
 const router = Router()
 
 router.get('/balance', authMiddleware, balance)
+router.get('/candles/:symbol/:timeFrame', candles)
 
 router.post('/market', authMiddleware, marketOrder)
 router.post('/limit', authMiddleware, limitOrder)

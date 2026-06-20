@@ -2,13 +2,6 @@
 import React from 'react'
 import Image from 'next/image'
 import solanalogo from "../../../asset/solanalogo.png";
-import { redis } from '@/redis/redis';
-import { useAppStore } from '@/store/store';
-import axios from 'axios';
-import { config } from '@/lib/config';
-import { handleError } from '@/app/utils/errorHandler';
-import { toast } from 'react-toastify';
-import { toastConfig } from '@/lib/toastConfig';
 import BalanceBox from './BalanceBox';
 
 const Topbar = ({ symbol }: { symbol: string }) => {
@@ -18,7 +11,7 @@ const Topbar = ({ symbol }: { symbol: string }) => {
       {/* SYMBOL DISPLAY BOX */}
       <div className='flex justify-center items-center bg-zinc-s hover:bg-zinc-800 rounded-md w-fit px-2 gap-2 hover:cursor-default'>
         <Image src={solanalogo} alt='solana-coin-img' width={20} className='rounded-full' />
-        <p className='font-bold'>{symbol}</p>
+        <p className='font-bold'>{symbol.slice(0,-3)}/USD</p>
         <p>""</p>
       </div>
 
