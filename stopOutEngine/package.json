@@ -7,7 +7,7 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "dev": "tsx node src/main/index.ts"
+    "dev": "tsx src/main/index.ts"
   },
   "dependencies": {
     "express": "^5.2.1",

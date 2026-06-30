@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { redis } from '../config/redis.js';
 import { prisma } from '../lib/prisma.js';
-import { candleQuery } from './utils.js';
+import { saveCandle } from './utils.js';
 
 if (!process.env.BACKPACK_URL) {
     throw new Error("BACKPACK_WS_URL is not defined in .env file");
@@ -33,27 +33,27 @@ export const startPoller = async () => {
             const { X: isClose } = parsedData.data
 
             if (parsedData.data.c) {
-                const price = String(Math.round(Number(parsedData.data.c) * 100))
+                const price = String((Number(parsedData.data.c) * 100).toFixed())
                 if (price !== lastPrice) {
                     // "2375633"
                     await redis.set(`LIVE-PRICE-${parsedData.data.s}`, price)
                     // await redis.lpush("liveprice", JSON.stringify({ symbol: parsedData.data.s, price: price }))
                     lastPrice = price
-                    // console.log("PRICE :", price);
+                    console.log("PRICE :", price);
                 }
             }
 
             if (isClose === true && parsedData.data.c) {
                 const timeFrame = parsedData.stream.split(".")[1]
 
-                console.log("\n> time :", Math.floor(new Date(parsedData.data.t + "Z" ).getTime() / 1000))
+                // console.log("\n> time :", Math.floor(new Date(parsedData.data.t + "Z" ).getTime() / 1000))
                 // console.log("> open :", Number(Number(parsedData.data.o).toFixed(2)))
                 // console.log("> close :", Number(Number(parsedData.data.c).toFixed(2)))
                 // console.log("> high :", Number(Number(parsedData.data.h).toFixed(2)))
                 // console.log("> low :", Number(Number(parsedData.data.l).toFixed(2)))
                 // console.log("> volume :", Number(parsedData.data.v))
 
-                await candleQuery(parsedData, String(timeFrame))
+                await saveCandle(parsedData, String(timeFrame))
             }
 
         } catch (error: any) {

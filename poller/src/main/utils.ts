@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma";
 
-export async function candleQuery(parsedData: any, timeFrame: string) {
+export async function saveCandle(parsedData: any, timeFrame: string) {
     try {
         const symbolSplit = (parsedData.data.s).split("_");
         const symbol = `${symbolSplit[0]}/USD`;
@@ -28,4 +28,17 @@ export async function candleQuery(parsedData: any, timeFrame: string) {
     } catch (error: any) {
         return error.message
     }
+}
+
+export function printTime() {
+    const options = {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true 
+    };
+
+    const indiaTime = new Date().toLocaleTimeString('en-IN', options);
+    console.log(`[IST] Current Time: ${indiaTime}`);
 }

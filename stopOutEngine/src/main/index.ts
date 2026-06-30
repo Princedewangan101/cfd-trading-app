@@ -1,14 +1,11 @@
 import { redis } from "../config/redis.js";
 import { kafkaProducerSend } from "../kafka/kafkaProducerSend.js";
 import { topics } from "../type/type.js";
-
-// THERE IS 3 TYPES OF ORDER WE HAVE TO CLOSE:
-// 1. ON SL TRIGGER
-// 2. ON TP TRIGGER
-// 3. IF USER TOTAL BALANCE REACH LOWER THAN 3 DOLLAR WE WILL CANCEL THE ORDER
+import { dataPush, delay } from "./dummyDataPush.js";
 
 export type OrderToClose = {
-    closeType: "sl" | "tp",
+    tp: "number",
+    sl: "number",
     symbol: "string",
     side: "BUY" | "SELL",
     price: "number",
@@ -16,53 +13,69 @@ export type OrderToClose = {
     userId: "string",
 }
 
-const orderToCloseArray: OrderToClose[] = []; //[{closeType:"sl"/"tp", price:23303, symbol:"SOLUSD", side:"BUY"/"SIDE", orderId:"orderId",  userId:"userId"}]
+const orderMap = new Map(); // orderId:{orderId:"orderId", tp:23303, sl:23303, symbol:"SOLUSD", side:"BUY"/"SIDE", userId:"userId" }
 
 orderCloseExecutor()
 
 async function orderCloseExecutor() {
     try {
         while (true) {
-            const orderToClose = await redis.rpop("sltpOrderClose"); // orderToClose = {closeType:"sl"/"tp", price:23303, symbol:"SOLUSD",side:"BUY"/"SIDE", orderId:"orderId",  userId:"userId"}
-            if (!orderToClose) {
-                throw new Error("orderToClose not found");
-            }
+            dataPush()
+            const order = await redis.rpop("sltpOrderClose"); // order = {tp:23303, sl:23303, symbol:"SOLUSD",side:"BUY"/"SIDE", orderId:"orderId", userId:"userId"}
+            if (!order) {
+                console.log('no new order to stop (orderCloseEngine/index.ts)');
+            } else {
+                const parsedOrder = JSON.parse(order);
+                if (!parsedOrder) {
+                    console.log('no new order to stop (orderCloseEngine/index.ts)');
+                } else {
+                    console.log("📦 parsedOrder : ", parsedOrder);
 
-            const parsedOrderToClose = JSON.parse(orderToClose);
-            if (!parsedOrderToClose) {
-                throw new Error("parsedOrderToClose not found");
-            }
+                    orderMap.set(order.orderId, order)
 
-            orderToCloseArray.push(parsedOrderToClose);
+                    // PULLING LIVE PRICE FROM POLLER , livePrice:{symbol:"symbol", price:"price"}
+                    const livePriceString = await redis.rpop("liveprice")
+                    if (!livePriceString) {
+                        console.log('no new livePrice in queue (orderCloseEngine/index.ts)', livePriceString);
+                    }
 
-            // PULLING LIVE PRICE FROM POLLER , livePrice:{symbol:"symbol", price:"price"}
-            const livePriceString = await redis.rpop("liveprice")
-            if (!livePriceString) {
-                console.log('no livePrice in queue (orderCloseEngine/index.ts)', livePriceString);
-            }
+                    if (livePriceString) {
+                        const parsedLivePrice = JSON.parse(livePriceString);
+                        // FILTER ORDER FROM ARRAY TO CLOSE/REMOVE
+                        // const filteredOrderToClose = orderMap.
 
-            if (livePriceString) {
-                const parsedLivePrice = JSON.parse(livePriceString);
-                // FILTER ORDER FROM ARRAY TO CLOSE/REMOVE
-                const filteredOrderToClose = orderToCloseArray.filter((order: OrderToClose) =>
-                    (order.closeType === "tp" && order.side === "BUY" && order.price < parsedLivePrice) ||
-                    (order.closeType === "sl" && order.side === "SELL" && order.price < parsedLivePrice) ||
-                    (order.closeType === "sl" && order.side === "BUY" && order.price > parsedLivePrice) ||
-                    (order.closeType === "tp" && order.side === "SELL" && order.price > parsedLivePrice)
-                )
-                await Promise.all(
-                    filteredOrderToClose.map(async (order: OrderToClose) => {
-                        const payload = JSON.stringify({ from: "orderCloseEngine", orderObj: order })
-                        // FOR CLOSING/REMOVING ORDER IN IN MEMORY ARRAY
-                        await redis.lpush("orderToCancel", JSON.stringify({ orderId: order.orderId, side: order.side }))
-                        // FOR UPDATING ORDER STSTUS FROM EXECUTION TO COMPLTED
-                        kafkaProducerSend(topics.UPDATE_ORDER, payload);
-                    })
-                )
+                        const filteredOrder = [];
+
+                        for (const [ordId, ordDetails] of orderMap) {
+                            if (ordDetails.symbol === parsedLivePrice.symbol) {
+                                if (ordDetails.tp < parsedLivePrice && ordDetails.side === "BUY") {
+                                    filteredOrder.push(ordDetails)
+                                } else if (ordDetails.sl < parsedLivePrice && ordDetails.side === "SELL") {
+                                    filteredOrder.push(ordDetails)
+                                } else if (ordDetails.sl > parsedLivePrice && ordDetails.side === "BUY") {
+                                    filteredOrder.push(ordDetails)
+                                } else if (ordDetails.tp > parsedLivePrice && ordDetails.side === "SELL") {
+                                    filteredOrder.push(ordDetails)
+                                }
+                            }
+                        }
+
+                        await Promise.all(
+                            filteredOrder.map(async (order) => {
+                                // FOR CLOSING/REMOVING ORDER IN IN MEMORY ARRAY
+                                await redis.lpush("orderToCancel", JSON.stringify({ orderId: order.orderId, side: order.side }))
+
+                                const payload = JSON.stringify({ from: "orderCloseEngine", orderObj: order })
+                                // FOR UPDATING ORDER STSTUS FROM EXECUTION TO COMPLTED
+                                await redis.lpush(topics.UPDATE_ORDER, payload)
+                                // kafkaProducerSend(topics.UPDATE_ORDER, payload);
+                            })
+                        )
+                    }
+                }
             }
         }
     } catch (error: any) {
         console.log("ERROR (engine/index.ts) :", error.message);
-        throw new Error(error.message)
     }
 }

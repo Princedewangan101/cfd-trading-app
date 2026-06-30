@@ -11,7 +11,7 @@ import { check } from '../util/IdempotencyCheck.js';
 // 4. PUSH ORDER INTO REDIS SORTED SET FOR LIMIT ORDER MATCHING
 
 export async function limitOrder(req: Request, res: Response) {
-    const userId = "7dda8668-3247-4111-884c-ec8092035851";
+    const userId = req.userId;
     const { ikey, symbol, price, side, quantity, leverage } = req.body;
     if (!ikey || !symbol || !price || !side || !quantity || !leverage) { return res.status(404).json({ success: false, message: "missing required fields !" }) }
 

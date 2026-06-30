@@ -1,6 +1,6 @@
 import { redis } from "../config/redis.js";
-import { kafkaProducerSend } from "../kafka/kafkaProducerSend.js";
 import { topics } from "../type/type.js";
+import { printTime } from "./utils.js";
 
 type BuyOrder = {
     orderId: "string";
@@ -18,33 +18,41 @@ type SellOrder = {
     price: "number";
 }
 
-// 1. PULL ORDER FROM QUEUE, PARSE IT, STORE IN ITS RESPECTIVE ARRAY[]. 
-// 2. WE PULL ORDER FORM QUEUE 
-// 2. WHEN EVER THE PRICE GET CHANGE WE WILL RECEIVE A NEW PRICE IN QUEUE FROM POLLER SERVICE, WHEN LIVEPRICE === TRUE WE WILL FILTER ORDER FROM ARRAY WHOSE SYMBOL IS EQUAL TO THE SYMBOL OF CHANGED PRICE ASSET.
-// 3. WE SEND UPDATE_ORDER EVENT THAT WILL UPDATE ORDER STATUS IN BACKEND DATABASE. 
-// 4. WE SEND REALTIME UPDATE FOR ONLINE UPDATE AND NOTIFY EVENT FOR OFFLINE UPDATE VIA EMAIL.
-
 limitOrderMatcher()
 
 async function limitOrderMatcher() {
     try {
-        var blimitOrders: BuyOrder[] = [];
-        var slimitOrders: SellOrder[] = [];
+        let blimitOrders: BuyOrder[] = [];
+        let slimitOrders: SellOrder[] = [];
 
         while (true) {
             // REMOVING ORDERS OF THOSE USER WHOSE TOTAL BALANCE IS ABOUT TO 0.
-            const usersUserIdToCloseAllOrder = await redis.rpop("orderCloseBecauseOfLowBalance"); // "{userId: "userId"}"
-            if (!usersUserIdToCloseAllOrder) {
-                throw new Error("orderToClose not found");
-            }
-
-            const parsedUsersUserIdToCloseAllOrder = JSON.parse(usersUserIdToCloseAllOrder); // {userId: "userId"}
-            if (parsedUsersUserIdToCloseAllOrder) {
-                var blimitOrders = blimitOrders.filter((order: BuyOrder) => order.userId === parsedUsersUserIdToCloseAllOrder.userId)
-                var slimitOrders = slimitOrders.filter((order: SellOrder) => order.userId === parsedUsersUserIdToCloseAllOrder.userId)
-            }
+            removingOrdersWhoseBalanceNearToZero()
 
             // PUSHING LIMITORDER INTO ARRAY
+            limitOrderIntoArray()
+
+            // PULLING ORDER HAVE WE HAVE TO REMOVE FROM ORDER ARRAY.
+            removeOrderFromArray()
+
+            // PULLING LIVE PRICE FROM POLLER , livePrice:{symbol:"symbol", price:"2678833"}
+            executingLimitOrders()
+        }
+
+        async function removingOrdersWhoseBalanceNearToZero() {
+            const usersUserIdToCloseAllOrder = await redis.rpop("orderCloseBecauseOfLowBalance"); // "{userId: "userId"}"
+            if (!usersUserIdToCloseAllOrder) {
+                console.log("📦📦📦 EMPTY removingOrdersWhoseBalanceNearToZero() ");
+            } else {
+                const parsedUsersUserIdToCloseAllOrder = JSON.parse(usersUserIdToCloseAllOrder); // {userId: "userId"}
+                if (parsedUsersUserIdToCloseAllOrder) {
+                    blimitOrders = blimitOrders.filter((order: BuyOrder) => order.userId === parsedUsersUserIdToCloseAllOrder.userId)
+                    slimitOrders = slimitOrders.filter((order: SellOrder) => order.userId === parsedUsersUserIdToCloseAllOrder.userId)
+                }
+            }
+        }
+
+        async function limitOrderIntoArray() {
             const order = await redis.rpop("limitOrders");
             if (!order) {
                 throw new Error("order not found !");
@@ -54,71 +62,78 @@ async function limitOrderMatcher() {
             if (!parsedOrder) {
                 throw new Error("parsedOrder not found !");
             }
-
+            console.log("> parsedOrder :", parsedOrder);
             parsedOrder.side === "BUY" ? blimitOrders.push(parsedOrder) : slimitOrders.push(parsedOrder)
 
-            // PULLING ORDER HAVE WE HAVE TO REMOVE FROM ORDER ARRAY.
+            console.log("> slimitOrders :", slimitOrders);
+            console.log("> blimitOrders :", blimitOrders);
+        }
+
+        async function removeOrderFromArray() {
             const orderToCancel = await redis.rpop("orderToCancel") // orderToCancel = "{orderId:"uuid", side:"BUY|SELL"}"
             if (!orderToCancel) {
-                console.log('no order in queue to cancel (engine/index.ts)', orderToCancel);
-            }
-
-            if (orderToCancel) {
+                console.log("📦📦📦 EMPTY removeOrderFromArray() ");
+            } else {
                 const parsedOrderToCancel = JSON.parse(orderToCancel); // parsedOrderToCancel = {orderId:"uuid", side:"BUY|SELL"}
                 if (!parsedOrderToCancel) {
-                    throw new Error("parsedOrderToCancel not found !");
+                    throw new Error("ERROR: failed to parse the order (that we have to cancle) removeOrderFromArray()");
                 }
                 if (parsedOrderToCancel.side === "BUY") {
-                    var blimitOrders = blimitOrders.filter((o: BuyOrder) => o.orderId !== parsedOrderToCancel.orderId);
+                    blimitOrders = blimitOrders.filter((o: BuyOrder) => o.orderId !== parsedOrderToCancel.orderId);
                 } else {
-                    var slimitOrders = blimitOrders.filter((o: SellOrder) => o.orderId !== parsedOrderToCancel.orderId);
+                    slimitOrders = blimitOrders.filter((o: SellOrder) => o.orderId !== parsedOrderToCancel.orderId);
                 }
             }
+        }
 
-            // PULLING LIVE PRICE FROM POLLER , livePrice:{symbol:"symbol", price:"price"}
-            const livePrice = await redis.rpop("liveprice")
+        async function executingLimitOrders() {
+            const livePrice = await redis.rpop("liveprice") // { symbol: BTC_USDC, price: "6574288" }
             if (!livePrice) {
                 console.log('no livePrice in queue (engine/index.ts)', livePrice);
-            }
-
-            if (livePrice) {
+            } else {
                 const parsedLivePrice = JSON.parse(livePrice);
-                if (parsedLivePrice) {
+                console.log("> parsedLivePrice", parsedLivePrice);
+
+                if (!parsedLivePrice) {
+                    throw new Error("failed to parse live price, executingLimitOrders()");
+                } else {
                     const validBuyOrderForExecution = blimitOrders.filter(o => o.symbol === parsedLivePrice.symbol && o.price > parsedLivePrice.price);
                     await Promise.all(validBuyOrderForExecution.map(async (order: BuyOrder) => {
-                        blimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
+                        blimitOrders = blimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
 
-                        const updateOrderPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, openPrice: parsedLivePrice.price })
-                        const realtimeupdatePayload = JSON.stringify({ userId: order.userId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
-                        const notifyPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+                        const updateOrderPayload = JSON.stringify({ from: "engine", userId: order.userId, orderId: order.orderId, openPrice: parsedLivePrice.price })
+                        await redis.lpush(topics.UPDATE_ORDER, updateOrderPayload)
 
-                        await kafkaProducerSend(topics.UPDATE_ORDER, updateOrderPayload)
-                        await kafkaProducerSend(topics.REAL_TIME_UPDATE, realtimeupdatePayload)
-                        await kafkaProducerSend(topics.NOTIFY_USER, notifyPayload);
+                        // const realtimeupdatePayload = JSON.stringify({ userId: order.userId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+                        // const notifyPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+
+                        // await kafkaProducerSend(topics.UPDATE_ORDER, updateOrderPayload)
+                        // await kafkaProducerSend(topics.REAL_TIME_UPDATE, realtimeupdatePayload) // TODO: let use SSE
+                        // await kafkaProducerSend(topics.NOTIFY_USER, notifyPayload);
 
                     }));
 
                     const validSellOrderForExecution = slimitOrders.filter(o => o.symbol === parsedLivePrice.symbol && o.price < parsedLivePrice.price);
                     await Promise.all(validSellOrderForExecution.map(async (order: SellOrder) => {
-                        slimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
+                        slimitOrders = slimitOrders.filter((o: BuyOrder) => o.orderId !== order.orderId);
 
-                        const updateOrderPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, openPrice: parsedLivePrice.price })
-                        const realtimeupdatePayload = JSON.stringify({ userId: order.userId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
-                        const notifyPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+                        const updateOrderPayload = JSON.stringify({ from: "engine", userId: order.userId, orderId: order.orderId, openPrice: parsedLivePrice.price })
+                        await redis.lpush(topics.UPDATE_ORDER, updateOrderPayload)
 
-                        await kafkaProducerSend(topics.UPDATE_ORDER, updateOrderPayload)
-                        await kafkaProducerSend(topics.REAL_TIME_UPDATE, realtimeupdatePayload)
-                        await kafkaProducerSend(topics.NOTIFY_USER, notifyPayload);
+                        // const realtimeupdatePayload = JSON.stringify({ userId: order.userId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+                        // const notifyPayload = JSON.stringify({ userId: order.userId, orderId: order.orderId, message: `Your limit order ${order.orderId} was executed at ${parsedLivePrice.price}` })
+
+                        // await kafkaProducerSend(topics.UPDATE_ORDER, updateOrderPayload)
+                        // await kafkaProducerSend(topics.REAL_TIME_UPDATE, realtimeupdatePayload)  // TODO: let use SSE
+                        // await kafkaProducerSend(topics.NOTIFY_USER, notifyPayload);
                     }));
                 }
             }
         }
     } catch (error: any) {
         console.log("ERROR (engine/index.ts) :", error.message);
-        throw new Error(error.message)
     }
 }
-
 
 
 

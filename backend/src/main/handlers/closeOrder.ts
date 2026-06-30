@@ -6,7 +6,7 @@ import { OrderStatus, TransactionType } from '../../generated/prisma/client.js';
 
 
 export async function closeOrder(req: Request, res: Response) {
-    const userId = "7dda8668-3247-4111-884c-ec8092035851";
+    const userId = req.userId;
     const { orderId } = req.body;
     if (!userId || !orderId) { res.status(404).json({ success: false, message: "Missing required fields !" }) }
 
@@ -87,11 +87,13 @@ export async function closeOrder(req: Request, res: Response) {
                 select: { orderId: true, status: true, closePrice: true }
             })
             return result
-        },{maxWait:5000, timeout:10000})
+        }, { maxWait: 5000, timeout: 10000 })
 
-        const  {status, closePrice} = result
+        const { status, closePrice } = result
+        
+        await redis.lpush("orderToCancel", JSON.stringify({orderId, side:order.side }))
 
-        return res.status(200).json({ success: true, data: { success: true, data: {orderId, status, closePrice, messaage:"Order close successfully."} } })
+        return res.status(200).json({ success: true, data: { success: true, data: { orderId, status, closePrice, messaage: "Order close successfully." } } })
     } catch (error: any) {
         console.log("ERROR (closeOrder.ts) : ", error.message);
         return res.status(500).json({ success: false, message: `Server error !` });
