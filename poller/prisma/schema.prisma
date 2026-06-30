@@ -38,3 +38,94 @@ model Candle {
   low           Float
   volume        Float
 } 
+
+model Btc1m {
+  candleStickId String @unique @id @default(uuid()) 
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
+
+model Btc5m {
+  candleStickId String @unique @id @default(uuid())
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
+
+model Btc {
+  candleStickId String @unique @id @default(uuid())
+  timeFrame     String  
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
+
+model Sol1m {
+  candleStickId String @unique @id @default(uuid())
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
+model Sol5m {
+  candleStickId String @unique @id @default(uuid())
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
+model Sol {
+  candleStickId String @unique @id @default(uuid())
+  timeFrame     String  
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
+
+model Eth1m {
+  candleStickId String @unique @id @default(uuid())
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
+
+model Eth5m {
+  candleStickId String @unique @id @default(uuid())
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
+
+model Eth {
+  candleStickId String @unique @id @default(uuid())
+  timeFrame     String  
+  time          Int
+  open          Float
+  close         Float
+  high          Float
+  low           Float
+  volume        Float
+} 
