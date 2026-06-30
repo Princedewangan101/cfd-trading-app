@@ -22,6 +22,9 @@ export default function RootLayout({
       lang="en"
       className={`${inter.className} dark h-full antialiased`}
     >
+      <head>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0&icon_names=arrow_drop_down" />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         <ToastContainer

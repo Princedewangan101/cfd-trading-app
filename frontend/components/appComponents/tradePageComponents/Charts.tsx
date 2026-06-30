@@ -9,18 +9,22 @@ import { debounce } from "@/app/utils/deBounce";
 import { updateCandle } from "@/app/utils/candleUpdate";
 import { chartAdjuster, timeFrame } from "@/lib/timeFrames";
 import { useAppStore } from "@/store/store";
+import Image from "next/image";
+import DrawerHeader from "./DrawerHeader";
+import DotLoader from "./DotLoader";
 
 
 const Charts = ({ symbol }: { symbol: string }) => {
 
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const isChartReady = useRef<boolean>(false)
+  const [isChartLoaded, setIsChartLoaded] = React.useState<boolean>(false);
+  const [isFetching, setIsFetching] = React.useState<boolean>(false);
+
 
   const symbolWithoutSlash = symbol;  // BTCUSD   <- no slash
-  const symbolWithSlash = `${symbolWithoutSlash.slice(0, -3)}/USD`
   const symbolWithUnderScore = `${symbolWithoutSlash.slice(0, -3)}_USD`
-  const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  const [isFetching, setIsFetching] = React.useState<boolean>(false);
 
   const dummyData = [
     { time: 1717243740, open: 150.00, high: 155.00, low: 148.00, close: 152.50 }, // 2024-06-01 12:09:00 UTC
@@ -49,7 +53,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
         secondsVisible: false,
       },
       width: chartContainerRef.current.clientWidth,
-      height: 508,
+      height: 480,
     })
 
     chart.applyOptions({
@@ -87,9 +91,10 @@ const Charts = ({ symbol }: { symbol: string }) => {
       candlestickSeries.setData([...formattedData]);
 
       isChartReady.current = true
+
     }
 
-    const socket = updateCandle(symbolWithUnderScore)
+    // const socket = updateCandle(symbolWithUnderScore)
 
     async function updateCandle(symbol) {
       if (!process.env.NEXT_PUBLIC_BACKPACK_URL) { throw new Error("NEXT_PUBLIC_BACKPACK_URL not found !!!"); }
@@ -162,7 +167,9 @@ const Charts = ({ symbol }: { symbol: string }) => {
   }
 
   useEffect(() => {
+    setIsChartLoaded(false)
     chart()
+    setIsChartLoaded(true)
   }, [symbolWithoutSlash]);
 
 
@@ -171,23 +178,29 @@ const Charts = ({ symbol }: { symbol: string }) => {
       {/* CHART */}
       <div ref={chartContainerRef} className="z-0" />
 
+      {!isChartLoaded && (
+        <DotLoader/>
+      )}
+
       <div className="absolute z-10 top-0 left-4">
         <div className="border px-5">
           flex
         </div>
       </div>
+
       <div className="absolute z-10 top-0 left-1/2 -translate-x-1/2">
-
         indicator
-
       </div>
 
-      {/* T0OLS */}
-      <div className="w-full h-full flex">
+      {/* TOOLS */}
+      <div className="w-full flex bg-zinc-s rounded py-1">
         <div className="h-full flex gap-1 ml-3">
           {
             timeFrame.map((tf) => (
-              <div onClick={() => { useAppStore.setState({ timeFrame: tf }) }} key={tf} className="flex items-center justify-center text-sm p-1 w-8  h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer">
+              <div
+                onClick={() => { useAppStore.setState({ timeFrame: tf }) }}
+                key={tf}
+                className="flex items-center justify-center text-sm p-1 w-8 h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer">
                 {tf}
               </div>
             ))
@@ -196,13 +209,18 @@ const Charts = ({ symbol }: { symbol: string }) => {
         <div className="flex gap-1 ml-auto mr-3 h-full">
           {
             chartAdjuster.map((x) =>
-              <div key={x} className="h-full p-1 text-sm rounded-sm hover:bg-zinc-800 hover:cursor-pointer">{x}</div>
+              <div
+                key={x}
+                className="flex items-center justify-center h-full p-1 text-sm rounded-sm hover:bg-zinc-800 hover:cursor-pointer">
+                {x}
+              </div>
             )
           }
         </div>
-
-
       </div>
+
+      {/* POSITION DRAWER */}
+      <DrawerHeader />
     </div>
   )
 }
