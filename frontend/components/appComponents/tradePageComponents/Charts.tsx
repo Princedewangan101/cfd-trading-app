@@ -11,25 +11,26 @@ import { chartAdjuster, timeFrame } from "@/lib/timeFrames";
 import { useAppStore } from "@/store/store";
 import Image from "next/image";
 import DrawerHeader from "./DrawerHeader";
+import DotLoader from "./DotLoader";
 
 
 const Charts = ({ symbol }: { symbol: string }) => {
 
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const isChartReady = useRef<boolean>(false)
   const [isChartLoaded, setIsChartLoaded] = React.useState<boolean>(false);
-
   const [isFetching, setIsFetching] = React.useState<boolean>(false);
+
 
   const symbolWithoutSlash = symbol;  // BTCUSD   <- no slash
   const symbolWithUnderScore = `${symbolWithoutSlash.slice(0, -3)}_USD`
-  const chartContainerRef = useRef<HTMLDivElement>(null);
 
 
-  // const dummyData = [
-  //   { time: 1717243740, open: 150.00, high: 155.00, low: 148.00, close: 152.50 }, // 2024-06-01 12:09:00 UTC
-  //   { time: 1717243800, open: 152.50, high: 160.00, low: 151.00, close: 158.20 }, // 2024-06-01 12:10:00 UTC
-  //   { time: 1717243860, open: 158.20, high: 165.00, low: 157.00, close: 162.10 }  // 2024-06-01 12:11:00 UTC
-  // ];
+  const dummyData = [
+    { time: 1717243740, open: 150.00, high: 155.00, low: 148.00, close: 152.50 }, // 2024-06-01 12:09:00 UTC
+    { time: 1717243800, open: 152.50, high: 160.00, low: 151.00, close: 158.20 }, // 2024-06-01 12:10:00 UTC
+    { time: 1717243860, open: 158.20, high: 165.00, low: 157.00, close: 162.10 }  // 2024-06-01 12:11:00 UTC
+  ];
 
   const barColour = {
     upColor: "#26a69a",
@@ -52,7 +53,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
         secondsVisible: false,
       },
       width: chartContainerRef.current.clientWidth,
-      height: 508,
+      height: 480,
     })
 
     chart.applyOptions({
@@ -90,7 +91,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
       candlestickSeries.setData([...formattedData]);
 
       isChartReady.current = true
-      setIsChartLoaded(true)
+
     }
 
     // const socket = updateCandle(symbolWithUnderScore)
@@ -168,19 +169,18 @@ const Charts = ({ symbol }: { symbol: string }) => {
   useEffect(() => {
     setIsChartLoaded(false)
     chart()
+    setIsChartLoaded(true)
   }, [symbolWithoutSlash]);
 
 
   return (
     <div className="relative flex flex-col w-full h-full bg-zinc-950 px-2 pt-2 rounded overflow-hidden">
       {/* CHART */}
-      {/* <div ref={chartContainerRef} className="z-0" /> */}
+      <div ref={chartContainerRef} className="z-0" />
 
-      {isChartLoaded ?
-        <div ref={chartContainerRef} className="z-0" />
-        :
-        <div className="border border-white h-100"></div>
-      }
+      {!isChartLoaded && (
+        <DotLoader/>
+      )}
 
       <div className="absolute z-10 top-0 left-4">
         <div className="border px-5">
