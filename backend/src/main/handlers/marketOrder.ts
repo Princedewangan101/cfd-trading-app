@@ -7,17 +7,26 @@ import { OrderStatus } from '../../generated/prisma/client.js';
 
 
 export async function marketOrder(req: Request, res: Response) {
-    console.log("marketOrder 1");
+    console.log("\n\n>> /api/market (api call)");
 
-    const userId = req.userId;
-    console.log("userId :", userId);
+    // const userId = req.userId;
+    const userId = "72c62fec-64a7-4b7f-89b4-e0e0ad2c2a25";
+
     const { ikey, symbol, side, quantity, leverage } = req.body;
-    if (!ikey || !symbol || !side || !quantity || !leverage) { return res.status(404).json({ success: false, message: "missing required fields !" }) }
-    console.log(2);
+    if (!ikey || !symbol || !side || !quantity || !leverage) {
+        console.log("\n> ---------- ERROR : missing required fields !");
+        return res.status(404).json({ success: false, message: "missing required fields !" })
+    }
+
+
     try {
         await check(res, ikey, userId, "marketOrder");
 
-        const livePrice = Number(await redis.get(`LIVE-PRICE-${symbol}`));
+        const livePrice = await redis.get(`LIVE-PRICE-${symbol}`) || "67888.33";
+        if (!livePrice) {
+            return res.status(404).json({ success: false, message: "Live price not found." })
+        }
+
         const orderCost = Number(quantity) * (Number(livePrice) / Number(leverage));
         const fee = 0.20 // dollar per quantity
         const orderCostWithFee = orderCost + (Number(quantity) * Number(fee))
@@ -26,29 +35,35 @@ export async function marketOrder(req: Request, res: Response) {
         let userAvailableBalanceQuery;
 
         const isAvailableBalanceInCache = await redis.exists(`availableBalance:${userId}`)
-        console.log("isAvailableBalanceInCache :", isAvailableBalanceInCache);
+        console.log("\n> isAvailableBalanceInCache :", isAvailableBalanceInCache === 0 ? "AVA. BAL. 'NOT' IN CACHE" : "AVA. BAL. IN CACHE");
 
         if (isAvailableBalanceInCache === 1) {
             availableBalance = await redis.get(`availableBalance:${userId}`)
-            console.log("availableBalance :", availableBalance);
+            console.log("\n> availableBalance (GET-FROM-CACHE) :", availableBalance);
         } else {
+            console.log("\n> FETCHING BAL IN DB ...");
             userAvailableBalanceQuery = await prisma.user.findUnique({ where: { userId }, select: { availableBalance: true } })
-            console.log("userAvailableBlnceQuery :", userAvailableBalanceQuery);
-            availableBalance = userAvailableBalanceQuery?.availableBalance
+            if (!userAvailableBalanceQuery) {
+                console.log("\n> ---------- ERROR : Failed to fetch balance.");
+                return res.status(404).json({ success: false, message: "Failed to fetch balance." })
+            }
+            console.log("\n> userAvailableBlnceQuery (FETCH FROM DB) :", userAvailableBalanceQuery.availableBalance);
+            availableBalance = userAvailableBalanceQuery.availableBalance
+            await redis.set(`availableBalance:${userId}`, String(availableBalance), "EX", 3600);
         }
 
-        console.log(`{lp:${livePrice}, oc:${orderCost}, fee:${fee}, avb:${availableBalance}`);
+        console.log(`\n > {lp:${livePrice}, oc:${orderCost}, fee:${fee}, avb:${availableBalance}`);
 
         if (!availableBalance) {
+            console.log("\n> ---------- ERROR : Available balance not found.");
             return res.status(404).json({ success: false, message: "Available balance not found." })
         }
-        console.log(3);
         const hasBalance = Number(availableBalance) >= Number(orderCost) ? true : false
 
         if (!hasBalance) {
+            console.log("\n> ---------- ERROR : Insufficient balance.");
             return res.status(404).json({ success: false, message: "Insufficient balance." })
         }
-
 
         const result = await prisma.$transaction(async (tx: any) => {
             await tx.$queryRaw`SELECT * FROM "User" WHERE "userId" = ${userId} FOR UPDATE`;
@@ -63,26 +78,33 @@ export async function marketOrder(req: Request, res: Response) {
                     status: OrderStatus.EXECUTED
                 }
             })
-            return { transactionResult, availableBalance: updateBalanceResult.availableBalance };
+            return { transactionResult, availableBalance: updateBalanceResult.availableBalance, lockedBalance: updateBalanceResult.lockedBalance };
         }, { maxWait: 5000, timeout: 10000 })
 
         if (!result) {
             await setIdemResponse(ikey, userId, 'Failed to create order.')
             return res.status(404).json({ success: false, message: "Failed to create order." })
         }
-        console.log(4);
+
+        const totalBalance = String(Number(result.availableBalance) + Number(result.lockedBalance))
+        await redis.set(`totalBalance:${userId}`, `${totalBalance}`, "EX", 3600);
         await redis.set(`availableBalance:${userId}`, String(result.availableBalance), "EX", 3600);
+        await redis.set(`lockedBalance:${userId}`, String(result.lockedBalance), "EX", 3600);
+
+        console.log("\n> total bal :", totalBalance);
+        console.log("\n> ava bal :", result.availableBalance);
+        console.log("\n> lock bal :", result.lockedBalance);
 
         const { orderId, openPrice, status, createdAt } = result.transactionResult;
 
         await setIdemResponse(ikey, userId, JSON.stringify({ orderId, price: openPrice, createdAt }))
-        console.log("---------------complete");
+        console.log("--------------- complete");
         return res.status(200).json({ success: true, data: { orderId, price: openPrice, status, createdAt } })
 
     } catch (error: any) {
         console.log("ERROR (marketOrder) : ", error.message);
         await setIdemResponse(ikey, userId, `${error.message}`)
-        console.log("---------------error");
+        console.log("--------------- error");
         return res.status(500).json({ success: false, message: `Server error !` })
     }
 } 

@@ -11,9 +11,16 @@ import { check } from '../util/IdempotencyCheck.js';
 // 4. PUSH ORDER INTO REDIS SORTED SET FOR LIMIT ORDER MATCHING
 
 export async function limitOrder(req: Request, res: Response) {
-    const userId = req.userId;
+    console.log("\n\n>> /api/limit (api call)");
+
+    // const userId = req.userId;
+    const userId = "72c62fec-64a7-4b7f-89b4-e0e0ad2c2a25";
+
     const { ikey, symbol, price, side, quantity, leverage } = req.body;
-    if (!ikey || !symbol || !price || !side || !quantity || !leverage) { return res.status(404).json({ success: false, message: "missing required fields !" }) }
+    if (!ikey || !symbol || !price || !side || !quantity || !leverage) {
+        console.log("\n> ---------- ERROR : missing required fields !");
+        return res.status(404).json({ success: false, message: "missing required fields !" })
+    }
 
     try {
         check(res, ikey, userId, "limitOrder");
@@ -23,26 +30,32 @@ export async function limitOrder(req: Request, res: Response) {
         let userAvailableBalanceQuery;
 
         const isAvailableBalanceInCache = await redis.exists(`availableBalance:${userId}`)
-        console.log("isAvailableBalanceInCache :", isAvailableBalanceInCache);
+        console.log("\n> isAvailableBalanceInCache :", isAvailableBalanceInCache === 0 ? "AVA. BAL. 'NOT' IN CACHE" : "AVA. BAL. IN CACHE");
 
         if (isAvailableBalanceInCache === 1) {
             availableBalance = await redis.get(`availableBalance:${userId}`)
-            console.log("availableBalance :", availableBalance);
+            console.log("\n> availableBalance (GET-FROM-CACHE) :", availableBalance);
         } else {
+            console.log("\n> FETCHING BAL IN DB ...");
             userAvailableBalanceQuery = await prisma.user.findUnique({ where: { userId }, select: { availableBalance: true } })
-            console.log("userAvailableBlnceQuery :", userAvailableBalanceQuery);
-            availableBalance = userAvailableBalanceQuery?.availableBalance
+            if (!userAvailableBalanceQuery) {
+                console.log("\n> ---------- ERROR : Failed to fetch balance.");
+                return res.status(404).json({ success: false, message: "Failed to fetch balance." })
+            }
+            console.log("\n> userAvailableBlnceQuery (FETCH FROM DB) :", userAvailableBalanceQuery.availableBalance);
+            availableBalance = userAvailableBalanceQuery.availableBalance
+            await redis.set(`availableBalance:${userId}`, String(availableBalance), "EX", 3600);
         }
-
-        console.log(`{p:${price}, oc:${orderCost}, avb:${availableBalance}`);
+        console.log(`\n> {p:${price}, oc:${orderCost}, avb:${availableBalance}`);
 
         if (!availableBalance) {
+            console.log("\n> ---------- ERROR : Available balance not found.");
             return res.status(404).json({ success: false, message: "Available balance not found." })
         }
-
         const hasBalance = Number(availableBalance) >= Number(orderCost) ? true : false
 
         if (!hasBalance) {
+            console.log("\n> ---------- ERROR : Insufficient balance.");
             return res.status(404).json({ success: false, message: "Insufficient balance." })
         }
 
@@ -65,14 +78,20 @@ export async function limitOrder(req: Request, res: Response) {
             await setIdemResponse(ikey, userId, 'failed to create order !')
             return res.status(404).json({ success: false, message: "failed to create order !" })
         }
-        
+
+        const totalBalance = String(Number(result.availableBalance) + Number(result.lockedBalance))
+        await redis.set(`totalBalance:${userId}`, `${totalBalance}`, "EX", 3600);
         await redis.set(`availableBalance:${userId}`, String(result.availableBalance), "EX", 3600);
         await redis.set(`lockedBalance:${userId}`, String(result.lockedBalance), "EX", 3600);
+
+        console.log("\n> total bal :", totalBalance);
+        console.log("\n> ava bal :", result.availableBalance);
+        console.log("\n> lock bal :", result.lockedBalance);
 
         const { orderId, openPrice, status, createdAt } = result.transactionResult;
 
         // PUSHING ORDER INTO REDIS FOR : LIMIT-ORDER-MATCHING ()
-        await redis.lpush("limitOrders", JSON.stringify({orderId, userId, symbol, side, price}));
+        await redis.lpush("limitOrders", JSON.stringify({ orderId, userId, symbol, side, price }));
 
         // IDEM RESPONSE SET
         await redis.set(`limitOrder${ikey}`, JSON.stringify({ orderId, price: openPrice, createdAt }))
