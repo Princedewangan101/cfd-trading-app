@@ -12,7 +12,8 @@ import { check } from '../util/IdempotencyCheck.js';
 export async function deposit(req: Request, res: Response) {
     console.log("\n\n>> /api/deposit");
 
-    const userId = req.userId;
+    // const userId = req.userId;
+    const userId = "72c62fec-64a7-4b7f-89b4-e0e0ad2c2a25";
     const { ikey, amount } = req.body;
 
     if (!ikey || !userId || !amount) {
@@ -30,8 +31,9 @@ export async function deposit(req: Request, res: Response) {
         if (!lockedBalance) {
             const lockedBalanceQuery = await prisma.user.findUnique({
                 where: {
-                    userId: String(userId), select: { lockedBalance: true }
-                }
+                    userId: String(userId)
+                },
+                select: { lockedBalance: true }
             })
             if (!lockedBalanceQuery) {
                 console.log("\n> ------- ERROR : Failed to get locked balance. !");
@@ -66,6 +68,10 @@ export async function deposit(req: Request, res: Response) {
 
         const totalBalance = String(Number(result.availableBalance) + Number(lockedBalance))
         await redis.set(`totalBalance:${userId}`, totalBalance, "EX", 3600)
+
+        console.log("\n> total bal :", totalBalance);
+        console.log("\n> ava bal :", result.availableBalance);
+        console.log("\n> lock bal :", lockedBalance);
 
         await setIdemResponse(ikey, userId, result.transactionId);
         console.log("------------------ completed");
