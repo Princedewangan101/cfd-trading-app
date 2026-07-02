@@ -22,7 +22,27 @@ export async function deposit(req: Request, res: Response) {
     }
 
     try {
-        await check(res, ikey, userId, "deposit")
+        const checkResponse = await check(res, ikey, userId, "deposit")
+        if (!checkResponse) {
+            return res.status(400).json({ success: false, message: "Failed in idempotency check." })
+        } else {
+            switch (checkResponse.responseType) {
+                case "firstRequest":
+                    console.log("\n> 'firstRequest' ");
+                    break;
+
+                case "alreadyHaveResponse":
+                    console.log("\n> 'alreadyHaveResponse'\n> ", { success: true, response: checkResponse.response });
+                    return res.status(200).json({ success: true, response: checkResponse.response });
+
+                case "duplicateRequest":
+                    console.log("\n> 'duplicateRequest'\n> ", { success: false, message: "Duplicate request." });
+                    return res.status(400).json({ success: false, message: "Duplicate request." });
+
+                default:
+                    break;
+            }
+        }
 
         let lockedBalance;
         lockedBalance = await redis.get(`lockedBalance:${userId}`);

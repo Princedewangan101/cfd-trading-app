@@ -15,7 +15,27 @@ export async function withdraw(req: Request, res: Response) {
     if (!ikey || !userId || !amount) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
 
     try {
-        await check(res, ikey, userId, "withdraw");
+        const checkResponse = await check(res, ikey, userId, "withdraw");
+        if (!checkResponse) {
+            return res.status(400).json({ success: false, message: "Failed in idempotency check." })
+        } else {
+            switch (checkResponse.responseType) {
+                case "firstRequest":
+                    console.log("\n> 'firstRequest' ");
+                    break;
+
+                case "alreadyHaveResponse":
+                    console.log("\n> 'alreadyHaveResponse'\n> ", { success: true, response: checkResponse.response });
+                    return res.status(200).json({ success: true, response: checkResponse.response });
+
+                case "duplicateRequest":
+                    console.log("\n> 'duplicateRequest'\n> ", { success: false, message: "Duplicate request." });
+                    return res.status(400).json({ success: false, message: "Duplicate request." });
+
+                default:
+                    break;
+            }
+        }
 
         // FETCHING ... LOCKED BALANCE
         let lockedBalance;
