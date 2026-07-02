@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { createChart, ColorType, CandlestickSeries } from "lightweight-charts";
 import React from "react";
+import { useEffect, useRef } from "react";
+import { useAppStore } from "@/store/store";
 import { loadInitialData } from "@/app/utils/loadInitialData";
 import { fetchOlderData } from "@/app/utils/fetchOlderData";
 import { debounce } from "@/app/utils/deBounce";
+import { createChart, ColorType, CandlestickSeries } from "lightweight-charts";
 import { updateCandle } from "@/app/utils/candleUpdate";
 import { chartAdjuster, timeFrame } from "@/lib/timeFrames";
-import { useAppStore } from "@/store/store";
-import Image from "next/image";
-import DrawerHeader from "./DrawerHeader";
 import DotLoader from "./DotLoader";
+import DrawerHeader from "./DrawerHeader";
+import { barColour } from "@/lib/barColor";
+import Drawer from "./Drawer";
+import { dummyData } from "@/lib/candleDummyData";
 
 
 const Charts = ({ symbol }: { symbol: string }) => {
@@ -20,25 +22,11 @@ const Charts = ({ symbol }: { symbol: string }) => {
   const isChartReady = useRef<boolean>(false)
   const [isChartLoaded, setIsChartLoaded] = React.useState<boolean>(false);
   const [isFetching, setIsFetching] = React.useState<boolean>(false);
+  const [chartTimeFrame, setChartTimeFrame] = React.useState<string>("1m");
 
 
   const symbolWithoutSlash = symbol;  // BTCUSD   <- no slash
   const symbolWithUnderScore = `${symbolWithoutSlash.slice(0, -3)}_USD`
-
-
-  const dummyData = [
-    { time: 1717243740, open: 150.00, high: 155.00, low: 148.00, close: 152.50 }, // 2024-06-01 12:09:00 UTC
-    { time: 1717243800, open: 152.50, high: 160.00, low: 151.00, close: 158.20 }, // 2024-06-01 12:10:00 UTC
-    { time: 1717243860, open: 158.20, high: 165.00, low: 157.00, close: 162.10 }  // 2024-06-01 12:11:00 UTC
-  ];
-
-  const barColour = {
-    upColor: "#26a69a",
-    downColor: "#ef5350",
-    borderVisible: false,
-    wickUpColor: "#26a69a",
-    wickDownColor: "#ef5350",
-  }
 
   function chart() {
     if (!chartContainerRef.current) return;
@@ -53,7 +41,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
         secondsVisible: false,
       },
       width: chartContainerRef.current.clientWidth,
-      height: 480,
+      height: 430,
     })
 
     chart.applyOptions({
@@ -75,7 +63,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
     initCandleData()
 
     async function initCandleData() {
-      const candleData = await loadInitialData(symbolWithUnderScore, timeFrame);
+      const candleData = await loadInitialData(symbolWithUnderScore, chartTimeFrame);
       // console.log(">>", candleData);
       const formattedData = candleData.map((candle) => {
         return {
@@ -94,7 +82,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
 
     }
 
-    // const socket = updateCandle(symbolWithUnderScore)
+    const socket = updateCandle(symbolWithUnderScore)
 
     async function updateCandle(symbol) {
       if (!process.env.NEXT_PUBLIC_BACKPACK_URL) { throw new Error("NEXT_PUBLIC_BACKPACK_URL not found !!!"); }
@@ -173,14 +161,13 @@ const Charts = ({ symbol }: { symbol: string }) => {
   }, [symbolWithoutSlash]);
 
 
+
   return (
-    <div className="relative flex flex-col w-full h-full bg-zinc-950 px-2 pt-2 rounded overflow-hidden">
+    <div className="relative flex flex-col w-full h-full bg-zinc-950 px-2 pt-2 rounded">
       {/* CHART */}
       <div ref={chartContainerRef} className="z-0" />
 
-      {!isChartLoaded && (
-        <DotLoader/>
-      )}
+      {!isChartLoaded && (<DotLoader />)}
 
       <div className="absolute z-10 top-0 left-4">
         <div className="border px-5">
@@ -196,12 +183,12 @@ const Charts = ({ symbol }: { symbol: string }) => {
       <div className="w-full flex bg-zinc-s rounded py-1">
         <div className="h-full flex gap-1 ml-3">
           {
-            timeFrame.map((tf) => (
+            timeFrame.map(({ time }) => (
               <div
-                onClick={() => { useAppStore.setState({ timeFrame: tf }) }}
-                key={tf}
-                className="flex items-center justify-center text-sm p-1 w-8 h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer">
-                {tf}
+                onClick={() => { setChartTimeFrame(time) }}
+                key={time}
+                className={`${chartTimeFrame === time && "bg-zinc-800"} flex items-center justify-center text-sm p-1 w-8 h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer`}>
+                {time}
               </div>
             ))
           }
@@ -219,8 +206,11 @@ const Charts = ({ symbol }: { symbol: string }) => {
         </div>
       </div>
 
-      {/* POSITION DRAWER */}
+      {/* POSITION DRAWER HEADER */}
       <DrawerHeader />
+
+      {/* POSITION DRAWER */}
+      {/* <Drawer /> */}
     </div>
   )
 }

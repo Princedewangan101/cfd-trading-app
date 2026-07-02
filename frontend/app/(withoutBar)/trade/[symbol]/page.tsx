@@ -21,8 +21,7 @@ const TradePage = async ({ params }: Params) => {
             <div className='flex gap-1 h-full'>
                 <div className='relative flex flex-col gap-1 rounded w-full h-full'>
                     <Topbar symbol={paramObj.symbol} />
-                    <Charts symbol={paramObj.symbol}/>
-                    <Drawer />
+                    <Charts symbol={paramObj.symbol} />
                 </div>
                 <OrderPanel symbol={paramObj.symbol} />
             </div>

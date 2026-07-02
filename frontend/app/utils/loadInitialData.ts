@@ -7,7 +7,7 @@ import { config } from "@/lib/config";
 
 export const loadInitialData = async (symbol: string, timeFrame: string) => {
     try {
-        const serverResponse = await axios.get(`http://localhost:5000/api/candles/${symbol}/1m`, config)
+        const serverResponse = await axios.get(`http://localhost:5000/api/candles/${symbol}/${timeFrame}`, config)
         // console.log(`> /api/candles/${symbol}/1m`)
         // console.log("> serverResponse : ", serverResponse);
         

@@ -1,4 +1,4 @@
-export const timeFrame = ["1m", "3m", "15m", "30", "1h", "4h", "1d", "1w", "1M"]
+export const timeFrame = [{"time":"1m"}, {"time":"5m"}, {"time":"15m"}, {"time":"30m"}, {"time":"1h"}, {"time":"4h"}, {"time":"1d"}, {"time":"1w"}, {"time":"1M"}]
 
 export const chartAdjuster = ["%", "log", "auto"]
 
@@ -11,7 +11,7 @@ export const orderPanelPriceData = [
     { title: "Fee", price: "20.67" },
 ]
 
-export const positionHeader = ["symbol", "quantity", "side", "status", "op", "cp", "sl", "tp", "pnl", "exec at", "close at"]
+export const positionHeader = ["syl", "qty", "side", "status", "open", "close", "sl", "tp", "pnl", "exe-at", "close-at"]
 
 export const position = [
     {
