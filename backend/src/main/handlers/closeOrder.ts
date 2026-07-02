@@ -1,12 +1,18 @@
 import { type Request, type Response } from 'express';
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
-import { OrderStatus, TransactionType } from '../../generated/prisma/client.js';
+import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
+import { success } from 'zod';
 
+type engineResult = {success:boolean, id:string, closePrice:string}
 
+let resolveStore:any[] = [] // {id:"1426", resolve}
 
 export async function closeOrder(req: Request, res: Response) {
-    const userId = req.userId;
+    console.log("\n\n> /api/close (api call)");
+
+    // const userId = req.userId;
+    const userId = "72c62fec-64a7-4b7f-89b4-e0e0ad2c2a25";
     const { orderId } = req.body;
     if (!userId || !orderId) { res.status(404).json({ success: false, message: "Missing required fields !" }) }
 
@@ -18,23 +24,34 @@ export async function closeOrder(req: Request, res: Response) {
         if (!order) {
             return res.status(404).json({ success: false, messge: "Order not found." })
         }
-
-        const livePrice = await redis.get(`LIVE-PRICE-${order.symbol}`) || 100
-
-        if (!livePrice) {
-            return res.status(404).json({ success: false, messge: "Live price not found." })
+        
+        const id = crypto.randomUUID()
+        
+        const engineResult:engineResult = await new Promise(async (resolve) => { 
+            resolveStore.push({id, promiseResolve:resolve})
+            console.log("\n> QUEUE 'closeOrder' : " , {id, symbol:order.symbol});
+            await redis.lpush("closeOrder", JSON.stringify({id, symbol:order.symbol}))
+        })
+        if (!engineResult.success) {
+            console.log("\n> engineResult :", engineResult);
+            return res.status(400).json({success:false, message:"Failed to close order."})
         }
-
+        console.log("\n> engineResult :", engineResult);
+        
         let pnl: number;
 
         if (order.side === "BUY") {
-            pnl = (Number(livePrice) - Number(order.openPrice))
+            pnl = (Number(engineResult.closePrice) - Number(order.openPrice))
         } else {
-            pnl = (Number(order.openPrice) - Number(livePrice))
+            pnl = (Number(order.openPrice) - Number(engineResult.closePrice))
         }
 
         const releaseBalance: number = Number(order.quantity) * Number(order.openPrice) / Number(order.leverage)
+        
+        console.log("\n> releaseBalance :", releaseBalance);
 
+        let availableBalance:number;
+        let lockedBalance:number;
         const result = await prisma.$transaction(async (tx: any) => {
             if (pnl > 0) {
                 await tx.transaction.create({
@@ -43,13 +60,13 @@ export async function closeOrder(req: Request, res: Response) {
                     }
                 })
 
-                const availableBalanceIncrement: number = releaseBalance + pnl
+                const availableBalanceIncrement: number = Number(releaseBalance) + Number(pnl)
 
-                await tx.user.update({
+                const result = await tx.user.update({
                     where: { userId },
                     data: { lockedBalance: { decrement: Number(releaseBalance) }, availableBalance: { increment: Number(availableBalanceIncrement) } }
                 })
-
+                availableBalance = Number(result.availableBalance), lockedBalance = Number(result.lockedBalance)
             } else {
                 await tx.transaction.create({
                     data: {
@@ -64,17 +81,17 @@ export async function closeOrder(req: Request, res: Response) {
 
                     const result = await tx.user.update({
                         where: { userId },
-                        data: { lockBalance: { decrement: Number(releaseBalance) }, availableBalance: { decrement: Number(lossAmountOutOfLockBalance) } }
+                        data: { lockedBalance: { decrement: Number(releaseBalance) }, availableBalance: { decrement: Number(lossAmountOutOfLockBalance) } }
                     });
-                    await redis.set(`totalBalance:${userId}`, `${result.lockBalance + result.availableBalance}`);
+                   availableBalance = Number(result.availableBalance), lockedBalance = Number(result.lockedBalance)
                 } else {
                     const restAmountOfTheLockBalanaceForThisTrade = releaseBalance - pnl
 
                     const result = await tx.user.update({
                         where: { userId },
-                        data: { lockBalance: { decrement: Number(pnl) }, availableBalance: { increment: Number(restAmountOfTheLockBalanaceForThisTrade) } }
+                        data: { lockedBalance: { decrement: Number(pnl) }, availableBalance: { increment: Number(restAmountOfTheLockBalanaceForThisTrade) } }
                     });
-                    await redis.set(`totalBalance:${userId}`, `${Number(result.lockBalance) + Number(result.availableBalance)}`, "EX", 3600);
+                   availableBalance = Number(result.availableBalance), lockedBalance = Number(result.lockedBalance)
                 }
             }
 
@@ -82,20 +99,62 @@ export async function closeOrder(req: Request, res: Response) {
             const result = await tx.order.update({
                 where: { orderId, userId },
                 data: {
-                    status: OrderStatus.COMPLETED, closePrice: livePrice,
+                    status: OrderStatus.COMPLETED, closePrice: engineResult.closePrice,
                 },
                 select: { orderId: true, status: true, closePrice: true }
             })
-            return result
+            return { orderId: result.orderId, status: result.status, closePrice: result.closePrice, availableBalance, lockedBalance }
         }, { maxWait: 5000, timeout: 10000 })
 
-        const { status, closePrice } = result
+        if (!result) {
+            res.status(400).json({success : false, message:"failed to close order."})
+        }
         
-        await redis.lpush("orderToCancel", JSON.stringify({orderId, side:order.side }))
+        const { status } = result
 
-        return res.status(200).json({ success: true, data: { success: true, data: { orderId, status, closePrice, messaage: "Order close successfully." } } })
+        await setBalance(userId, Number(result.availableBalance), Number(result.lockedBalance))
+        
+        // await redis.lpush("orderToCancel", JSON.stringify({orderId, side:order.side })) 
+
+        console.log("\n> order closed : ", { success: true, data: { success: true, data: { orderId, status, closePrice:engineResult.closePrice, message: "Order close successfully." } } });
+        
+        return res.status(200).json({ success: true, data: { success: true, data: { orderId, status, closePrice:engineResult.closePrice, message: "Order close successfully." } } })
+
     } catch (error: any) {
         console.log("ERROR (closeOrder.ts) : ", error.message);
         return res.status(500).json({ success: false, message: `Server error !` });
+    }
+}
+
+ async function setBalance(userId: string, avaBal:number, lockBal:number) {   
+    const totalBalance = String(Number(avaBal) + Number(lockBal))
+    await redis.set(`totalBalance:${userId}`, totalBalance, "EX", 3600)
+    await redis.set(`availableBalance:${userId}`, String(avaBal), "EX", 3600);
+    await redis.set(`lockedBalance:${userId}`, String(lockBal), "EX", 3600);
+                        
+    console.log("\n> total bal :", totalBalance);
+    console.log("\n> ava bal :", avaBal);
+    console.log("\n> lock bal :", lockBal);
+}
+
+handleMessage()
+
+async function handleMessage() {
+    while (true) {
+        const result =  await redis.rpop("closeOrderResult") || 0 // { id, closePrice }
+        if (result === 0) {
+                continue
+        }else{
+                    const parsedResult = JSON.parse(result)
+                    console.log("\n>> --------------- handleMessage start \n> DE-QUEUE 'closeOrderResult' : ", parsedResult);
+                
+                    const {id} = parsedResult
+                    const resolveObj = resolveStore.find((r) => r.id === id)
+                    console.log("\n> resolveObj", resolveObj);
+                    const resolve = resolveObj.promiseResolve
+                    resolve(parsedResult)
+                    resolveStore = resolveStore.filter((r) => r.id != id)
+                    console.log("\n>> --------------- handleMessage end")
+        }
     }
 }
