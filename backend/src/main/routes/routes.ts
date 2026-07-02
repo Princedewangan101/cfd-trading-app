@@ -13,17 +13,28 @@ import { candles } from '../handlers/getCandles.js';
 
 const router = Router()
 
-router.get('/balance', authMiddleware, balance)
+// router.get('/balance', authMiddleware, balance)
+// router.get('/candles/:symbol/:timeFrame', candles)
+
+// router.post('/market', authMiddleware, marketOrder)
+// router.post('/limit', authMiddleware, limitOrder)
+// router.post('/close', authMiddleware, closeOrder)
+// router.post('/modify', authMiddleware, modify)
+
+
+// router.post('/deposit', authMiddleware, deposit)
+// router.post('/withdraw', authMiddleware, withdraw)
+router.get('/balance', balance)
 router.get('/candles/:symbol/:timeFrame', candles)
 
-router.post('/market', authMiddleware, marketOrder)
-router.post('/limit', authMiddleware, limitOrder)
-router.post('/close', authMiddleware, closeOrder)
-router.post('/modify', authMiddleware, modify)
+router.post('/market', marketOrder)
+router.post('/limit', limitOrder)
+router.post('/close', closeOrder)
+router.post('/modify', modify)
 
 
-router.post('/deposit', authMiddleware, deposit)
-router.post('/withdraw', authMiddleware, withdraw)
+router.post('/deposit', deposit)
+router.post('/withdraw', withdraw)
 
 router.post('/signin', signin)
 router.post('/signup', signup)
