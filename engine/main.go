@@ -88,50 +88,50 @@ func makingBatchOfUserIdWhoseBalanceNearToZero() (*[]string, error) {
 	return &users, nil
 }
 
-// func batchExecution(buyOrders, sellOrders *[]types.Order, users *[]string) {
+func batchExecution(buyOrders, sellOrders *[]types.Order, users *[]string) {
 
-// 	var filteredBuy []types.Order
-// 	var filteredSell []types.Order
+	var filteredBuy []types.Order
+	var filteredSell []types.Order
 
-// 	userMap := make(map[string]string)
+	userMap := make(map[string]string)
 
-// 	for _, userId := range *users {
-// 		userMap[userId] = "0"
-// 	}
+	for _, userId := range *users {
+		userMap[userId] = "0"
+	}
 
-// 	for _, buyOrder := range *buyOrders {
-// 		wg.Add(1)
-// 		go func(buyOrder types.Order) {
-// 			defer wg.Done()
-// 			_, exist := userMap[buyOrder.UserId]
+	for _, buyOrder := range *buyOrders {
+		wg.Add(1)
+		go func(buyOrder types.Order) {
+			defer wg.Done()
+			_, exist := userMap[buyOrder.UserId]
 
-// 			if !exist {
-// 				mu.Lock()
-// 				filteredBuy = append(filteredBuy, buyOrder)
-// 				mu.Unlock()
-// 			}
-// 		}(buyOrder)
-// 	}
+			if !exist {
+				mu.Lock()
+				filteredBuy = append(filteredBuy, buyOrder)
+				mu.Unlock()
+			}
+		}(buyOrder)
+	}
 
-// 	for _, sellOrder := range *sellOrders {
-// 		wg.Add(1)
-// 		go func(sellOrder types.Order) {
-// 			defer wg.Done()
-// 			_, exist := userMap[sellOrder.UserId]
+	for _, sellOrder := range *sellOrders {
+		wg.Add(1)
+		go func(sellOrder types.Order) {
+			defer wg.Done()
+			_, exist := userMap[sellOrder.UserId]
 
-// 			if !exist {
-// 				mu.Lock()
-// 				filteredBuy = append(filteredBuy, sellOrder)
-// 				mu.Unlock()
-// 			}
-// 		}(sellOrder)
-// 	}
+			if !exist {
+				mu.Lock()
+				filteredBuy = append(filteredBuy, sellOrder)
+				mu.Unlock()
+			}
+		}(sellOrder)
+	}
 
-// 	wg.Wait()
+	wg.Wait()
 
-// 	*buyOrders = filteredBuy
-// 	*sellOrders = filteredSell
-// }
+	*buyOrders = filteredBuy
+	*sellOrders = filteredSell
+}
 
 // func OrderInArray(buyOrders, sellOrders *[]types.Order) {
 // 	for i := 0; i < 10000; i++ {
