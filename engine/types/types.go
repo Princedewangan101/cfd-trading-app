@@ -9,6 +9,8 @@ const (
 	LivePriceQueue               = "liveprice"
 	SltpOrderClose               = "sltpOrderClose"
 	OrderCloseBecauseOfLowBalance = "orderCloseBecauseOfLowBalance"
+
+	RedisNil = "redis: nil"
 )
 
 type Order struct {
