@@ -133,35 +133,35 @@ func batchExecution(buyOrders, sellOrders *[]types.Order, users *[]string) {
 	*sellOrders = filteredSell
 }
 
-// func OrderInArray(buyOrders, sellOrders *[]types.Order) {
-// 	for i := 0; i < 10000; i++ {
-// 		wg.Add(1)
-// 		go func(buyOrders, sellOrders *[]types.Order) {
-// 			defer wg.Done()
-// 			val, err := config.RedisClient.RPop(ctx, types.LimitOrders).Result()
-// 			if err == redis.Nil {
-// 				return
-// 			}
-// 			if err != nil {
-// 				log.Printf("ERROR limitOrderIntoArray: %v", err)
-// 				return
-// 			}
+func OrderInArray(buyOrders, sellOrders *[]types.Order) {
+	for i := 0; i < 10000; i++ {
+		wg.Add(1)
+		go func(buyOrders, sellOrders *[]types.Order) {
+			defer wg.Done()
+			val, err := config.RedisClient.RPop(ctx, types.LimitOrders).Result()
+			if err == redis.Nil {
+				return
+			}
+			if err != nil {
+				log.Printf("ERROR limitOrderIntoArray: %v", err)
+				return
+			}
 
-// 			var order types.Order
-// 			if err := json.Unmarshal([]byte(val), &order); err != nil {
-// 				log.Printf("ERROR parsing limit order: %v", err)
-// 				return
-// 			}
+			var order types.Order
+			if err := json.Unmarshal([]byte(val), &order); err != nil {
+				log.Printf("ERROR parsing limit order: %v", err)
+				return
+			}
 
-// 			if strings.ToUpper(order.Side) == "BUY" {
-// 				*buyOrders = append(*buyOrders, order)
-// 			} else {
-// 				*sellOrders = append(*sellOrders, order)
-// 			}
-// 		}(buyOrders, sellOrders)
-// 	}
-// 	wg.Wait()
-// }
+			if strings.ToUpper(order.Side) == "BUY" {
+				*buyOrders = append(*buyOrders, order)
+			} else {
+				*sellOrders = append(*sellOrders, order)
+			}
+		}(buyOrders, sellOrders)
+	}
+	wg.Wait()
+}
 
 // func removeOrderFromArray(blimitOrders, slimitOrders *[]types.Order) {
 // 	val, err := config.RedisClient.RPop(ctx, types.OrderToCancel).Result()
