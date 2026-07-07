@@ -21,23 +21,19 @@ var ctx = context.Background()
 var wg sync.WaitGroup
 var mu sync.Mutex
 
+var (
+	MILLION = 1000000
+	TEN_MILLION = 10000000
+)
+
 func main() {
-	go limitOrderMatcher()
-	orderCloseExecutor()
+	go EngineRun()
+	go executingLimitOrders(buyOrders, sellOrders)
+	orderCloseExecutor()    
 	select {}
 }
 
-func printTime() {
-	now := time.Now()
-	loc, err := time.LoadLocation("Asia/Kolkata")
-	if err != nil {
-		log.Printf("ERROR loading location: %v", err)
-		return
-	}
-	fmt.Printf("[IST] Current Time: %s\n", now.In(loc).Format("03:04:05 PM"))
-}
-
-func limitOrderMatcher() {
+func EngineRun() {
 	var buyOrders []types.Order
 	var sellOrders []types.Order
 
@@ -88,53 +84,46 @@ func makingBatchOfUserIdWhoseBalanceNearToZero() (*[]string, error) {
 	return &users, nil
 }
 
-func batchExecution(buyOrders, sellOrders *[]types.Order, users *[]string) {
+func batchExecution(buyOrders, sellOrders *[]types.Order, users *[]string)  {
+
+	if users == []string {
+		return fmt.Printf("no users passed in batchExecution")
+	}
 
 	var filteredBuy []types.Order
 	var filteredSell []types.Order
 
-	userMap := make(map[string]string)
+	userMap := make(map[string]int)
 
+	i := 1
 	for _, userId := range *users {
-		userMap[userId] = "0"
+		userMap[userId] = i
+		i++
 	}
 
 	for _, buyOrder := range *buyOrders {
-		wg.Add(1)
-		go func(buyOrder types.Order) {
-			defer wg.Done()
-			_, exist := userMap[buyOrder.UserId]
+		_, exist := userMap[buyOrder.UserId]
 
-			if !exist {
-				mu.Lock()
-				filteredBuy = append(filteredBuy, buyOrder)
-				mu.Unlock()
-			}
-		}(buyOrder)
+		if !exist {
+			filteredBuy = append(filteredBuy, buyOrder)
+		}
 	}
 
 	for _, sellOrder := range *sellOrders {
-		wg.Add(1)
-		go func(sellOrder types.Order) {
-			defer wg.Done()
-			_, exist := userMap[sellOrder.UserId]
+		_, exist := userMap[sellOrder.UserId]
 
-			if !exist {
-				mu.Lock()
-				filteredBuy = append(filteredBuy, sellOrder)
-				mu.Unlock()
-			}
-		}(sellOrder)
+		if !exist {
+			filteredBuy = append(filteredBuy, sellOrder)
+		}
 	}
-
-	wg.Wait()
-
+	mu.Unlock()
 	*buyOrders = filteredBuy
 	*sellOrders = filteredSell
+	mu.Lock()
 }
 
 func OrderInArray(buyOrders, sellOrders *[]types.Order) {
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func(buyOrders, sellOrders *[]types.Order) {
 			defer wg.Done()
@@ -168,193 +157,176 @@ func OrderInArray(buyOrders, sellOrders *[]types.Order) {
 	wg.Wait()
 }
 
-func removeOrderFromArray(blimitOrders, slimitOrders *[]types.Order) {
-	val, err := config.RedisClient.RPop(ctx, types.OrderToCancel).Result()
-	if err == redis.Nil {
-		fmt.Println("📦📦📦 EMPTY removeOrderFromArray() ")
-		return
-	}
-	if err != nil {
-		log.Printf("ERROR removeOrderFromArray: %v", err)
-		return
-	}
+func removeOrderFromArray(buyOrders, sellOrders *[]types.Order) {
 
-	var cancelOrder struct {
-		OrderId string `json:"orderId"`
-		Side    string `json:"side"`
-	}
-	if err := json.Unmarshal([]byte(val), &cancelOrder); err != nil {
-		log.Printf("ERROR parsing cancel order: %v", err)
-		return
-	}
+	cancelOrders := make(map[string]types.CancelOrders)
 
-	if strings.ToUpper(cancelOrder.Side) == "BUY" {
-		var filtered []types.Order
-		for _, o := range *blimitOrders {
-			if o.OrderId != cancelOrder.OrderId {
+	for i := 0; i < TEN_MILLION; i++ {
+		order, err := config.RedisClient.RPop(ctx, types.OrderToCancel).Result() // {id:"", symbol:"", side:"", orderId:""}
+		if err == redis.Nil {
+			fmt.Println("📦📦📦 EMPTY removeOrderFromArray() ")
+			return
+		}
+		if err != nil {
+			log.Printf("ERROR removeOrderFromArray: %v", err)
+			return
+		} 
+
+		var cancelOrder types.CancelOrders
+		if err := json.Unmarshal([]byte(order), &cancelOrder); err != nil {
+			log.Printf("ERROR parsing cancel order: %v", err)
+			return
+		}
+
+		cancelOrders[cancelOrder.Id] = types.CancelOrders(cancelOrder)
+	}
+	
+	for _, o := range *buyOrders {
+		var filtered []types.CancelOrders
+		if strings.ToUpper(cancelOrder.Side) == "BUY" {
+		_, exist := cancelOrders[o.OrderId]
+			if !exist {
 				filtered = append(filtered, o)
 			}
 		}
-		*blimitOrders = filtered
+		mu.Lock()
+		*buyOrders = filtered 
+		mu.Unlock()
 	} else {
-		var filtered []types.Order
-		for _, o := range *slimitOrders {
-			if o.OrderId != cancelOrder.OrderId {
-				filtered = append(filtered, o)
+		var filtered []types.CancelOrders
+		for _, o := range *sellOrders {
+			if strings.ToUpper(cancelOrder.Side) == "SELL" {
+				_, exist := cancelOrders[o.OrderId]
+	
+				if !exist {
+					filtered = append(filtered, o)
+				}
 			}
 		}
-		*slimitOrders = filtered
+		mu.Lock()
+		*sellOrders = filtered
+		mu.Unlock()
 	}
 }
 
-func executingLimitOrders(blimitOrders, slimitOrders *[]types.Order) {
-	livePriceStr, err := config.RedisClient.RPop(ctx, types.LivePriceQueue).Result()
-	if err == redis.Nil {
-		fmt.Println("no livePrice in queue (engine/index.ts)", livePriceStr)
-		return
-	}
-	if err != nil {
-		log.Printf("ERROR executingLimitOrders RPop: %v", err)
-		return
-	}
+// func executingLimitOrders(buyOrders, sellOrders *[]types.Order) {
+// 	livePriceStr, err := config.RedisClient.RPop(ctx, types.LivePriceQueue).Result()
+// 	if err == redis.Nil {
+// 		fmt.Println("no livePrice in queue (engine/index.ts)", livePriceStr)
+// 		return
+// 	}
+// 	if err != nil {
+// 		log.Printf("ERROR executingLimitOrders RPop: %v", err)
+// 		return
+// 	}
 
-	var livePrice types.LivePrice
-	if err := json.Unmarshal([]byte(livePriceStr), &livePrice); err != nil {
-		log.Printf("ERROR parsing live price: %v", err)
-		return
-	}
+// 	var livePrice types.LivePrice
+// 	if err := json.Unmarshal([]byte(livePriceStr), &livePrice); err != nil {
+// 		log.Printf("ERROR parsing live price: %v", err)
+// 		return
+// 	}
 
-	fmt.Println("> parsedLivePrice", livePrice)
+// 	var filteredOrders []types.Order
+// 	var remainingBuy []types.Order
+// 	for _, o := range buyOrders {
+// 		if o.Symbol != livePrice.Symbol && o.Price !> livePrice.Price {
+// 			filteredOrders = append(filteredOrders, o)
+// 		}
+// 	}
+// 	*buyOrders = filteredOrders
 
-	var validBuyOrders []types.Order
-	var remainingBuy []types.Order
-	for _, o := range *blimitOrders {
-		if o.Symbol == livePrice.Symbol && o.Price > livePrice.Price {
-			validBuyOrders = append(validBuyOrders, o)
-		} else {
-			remainingBuy = append(remainingBuy, o)
-		}
-	}
-	*blimitOrders = remainingBuy
+// 	filteredOrders = []
+// 	var remainingSell []types.Order
+// 	for _, o := range *slimitOrders {
+// 		if o.Symbol != livePrice.Symbol && o.Price !< livePrice.Price {
+// 			filteredOrders = append(filteredOrders, o)
+// 		} 
+// 	}
+// 	*sellOrders = filteredOrders
+// }
 
-	for _, order := range validBuyOrders {
-		payload, _ := json.Marshal(map[string]any{
-			"from":      "engine",
-			"userId":    order.UserId,
-			"orderId":   order.OrderId,
-			"openPrice": livePrice.Price,
-		})
-		if err := config.RedisClient.LPush(ctx, types.UpdateOrder, string(payload)).Err(); err != nil {
-			log.Printf("ERROR pushing updateOrder: %v", err)
-		}
-	}
+// func orderCloseExecutor() {
+// 	orderMap := make(map[string]types.OrderToClose)
 
-	var validSellOrders []types.Order
-	var remainingSell []types.Order
-	for _, o := range *slimitOrders {
-		if o.Symbol == livePrice.Symbol && o.Price < livePrice.Price {
-			validSellOrders = append(validSellOrders, o)
-		} else {
-			remainingSell = append(remainingSell, o)
-		}
-	}
-	*slimitOrders = remainingSell
+// 	for {
+// 		val, err := config.RedisClient.RPop(ctx, types.SltpOrderClose).Result()
+// 		if err == redis.Nil {
+// 			fmt.Println("no new order to stop (orderCloseEngine/index.ts)")
+// 			time.Sleep(100 * time.Millisecond)
+// 			continue
+// 		}
+// 		if err != nil {
+// 			log.Printf("ERROR orderCloseExecutor RPop: %v", err)
+// 			time.Sleep(100 * time.Millisecond)
+// 			continue
+// 		}
 
-	for _, order := range validSellOrders {
-		payload, _ := json.Marshal(map[string]any{
-			"from":      "engine",
-			"userId":    order.UserId,
-			"orderId":   order.OrderId,
-			"openPrice": livePrice.Price,
-		})
-		if err := config.RedisClient.LPush(ctx, types.UpdateOrder, string(payload)).Err(); err != nil {
-			log.Printf("ERROR pushing updateOrder: %v", err)
-		}
-	}
-}
+// 		var parsedOrder types.OrderToClose
+// 		if err := json.Unmarshal([]byte(val), &parsedOrder); err != nil {
+// 			log.Printf("ERROR parsing sltp order: %v", err)
+// 			continue
+// 		}
 
-func orderCloseExecutor() {
-	orderMap := make(map[string]types.OrderToClose)
+// 		fmt.Println("📦 parsedOrder : ", parsedOrder)
+// 		orderMap[parsedOrder.OrderId] = parsedOrder
 
-	for {
-		val, err := config.RedisClient.RPop(ctx, types.SltpOrderClose).Result()
-		if err == redis.Nil {
-			fmt.Println("no new order to stop (orderCloseEngine/index.ts)")
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-		if err != nil {
-			log.Printf("ERROR orderCloseExecutor RPop: %v", err)
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
+// 		livePriceStr, err := config.RedisClient.RPop(ctx, types.LivePriceQueue).Result()
+// 		if err == redis.Nil {
+// 			fmt.Println("no new livePrice in queue (orderCloseEngine/index.ts)", livePriceStr)
+// 			continue
+// 		}
+// 		if err != nil {
+// 			log.Printf("ERROR orderCloseExecutor livePrice RPop: %v", err)
+// 			continue
+// 		}
 
-		var parsedOrder types.OrderToClose
-		if err := json.Unmarshal([]byte(val), &parsedOrder); err != nil {
-			log.Printf("ERROR parsing sltp order: %v", err)
-			continue
-		}
+// 		var livePrice types.LivePrice
+// 		if err := json.Unmarshal([]byte(livePriceStr), &livePrice); err != nil {
+// 			log.Printf("ERROR parsing live price in orderCloseExecutor: %v", err)
+// 			continue
+// 		}
 
-		fmt.Println("📦 parsedOrder : ", parsedOrder)
-		orderMap[parsedOrder.OrderId] = parsedOrder
+// 		var filteredOrder []types.OrderToClose
 
-		livePriceStr, err := config.RedisClient.RPop(ctx, types.LivePriceQueue).Result()
-		if err == redis.Nil {
-			fmt.Println("no new livePrice in queue (orderCloseEngine/index.ts)", livePriceStr)
-			continue
-		}
-		if err != nil {
-			log.Printf("ERROR orderCloseExecutor livePrice RPop: %v", err)
-			continue
-		}
+// 		for _, ordDetails := range orderMap {
+// 			if ordDetails.Symbol != livePrice.Symbol {
+// 				continue
+// 			}
 
-		var livePrice types.LivePrice
-		if err := json.Unmarshal([]byte(livePriceStr), &livePrice); err != nil {
-			log.Printf("ERROR parsing live price in orderCloseExecutor: %v", err)
-			continue
-		}
+// 			triggered := false
+// 			switch {
+// 			case ordDetails.Tp < livePrice.Price && ordDetails.Side == "BUY":
+// 				triggered = true
+// 			case ordDetails.Sl < livePrice.Price && ordDetails.Side == "SELL":
+// 				triggered = true
+// 			case ordDetails.Sl > livePrice.Price && ordDetails.Side == "BUY":
+// 				triggered = true
+// 			case ordDetails.Tp > livePrice.Price && ordDetails.Side == "SELL":
+// 				triggered = true
+// 			}
 
-		var filteredOrder []types.OrderToClose
+// 			if triggered {
+// 				filteredOrder = append(filteredOrder, ordDetails)
+// 				delete(orderMap, ordDetails.OrderId)
+// 			}
+// 		}
 
-		for _, ordDetails := range orderMap {
-			if ordDetails.Symbol != livePrice.Symbol {
-				continue
-			}
+// 		for _, order := range filteredOrder {
+// 			cancelPayload, _ := json.Marshal(map[string]any{
+// 				"orderId": order.OrderId,
+// 				"side":    order.Side,
+// 			})
+// 			if err := config.RedisClient.LPush(ctx, types.OrderToCancel, string(cancelPayload)).Err(); err != nil {
+// 				log.Printf("ERROR pushing orderToCancel: %v", err)
+// 			}
 
-			triggered := false
-			switch {
-			case ordDetails.Tp < livePrice.Price && ordDetails.Side == "BUY":
-				triggered = true
-			case ordDetails.Sl < livePrice.Price && ordDetails.Side == "SELL":
-				triggered = true
-			case ordDetails.Sl > livePrice.Price && ordDetails.Side == "BUY":
-				triggered = true
-			case ordDetails.Tp > livePrice.Price && ordDetails.Side == "SELL":
-				triggered = true
-			}
-
-			if triggered {
-				filteredOrder = append(filteredOrder, ordDetails)
-				delete(orderMap, ordDetails.OrderId)
-			}
-		}
-
-		for _, order := range filteredOrder {
-			cancelPayload, _ := json.Marshal(map[string]any{
-				"orderId": order.OrderId,
-				"side":    order.Side,
-			})
-			if err := config.RedisClient.LPush(ctx, types.OrderToCancel, string(cancelPayload)).Err(); err != nil {
-				log.Printf("ERROR pushing orderToCancel: %v", err)
-			}
-
-			payload, _ := json.Marshal(map[string]any{
-				"from":     "orderCloseEngine",
-				"orderObj": order,
-			})
-			if err := config.RedisClient.LPush(ctx, types.UpdateOrder, string(payload)).Err(); err != nil {
-				log.Printf("ERROR pushing updateOrder: %v", err)
-			}
-		}
-	}
-}
+// 			payload, _ := json.Marshal(map[string]any{
+// 				"from":     "orderCloseEngine",
+// 				"orderObj": order,
+// 			})
+// 			if err := config.RedisClient.LPush(ctx, types.UpdateOrder, string(payload)).Err(); err != nil {
+// 				log.Printf("ERROR pushing updateOrder: %v", err)
+// 			}
+// 		}
+// 	}
+// }

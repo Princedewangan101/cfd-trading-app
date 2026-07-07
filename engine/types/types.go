@@ -1,17 +1,24 @@
 package types
 
 const (
-	UpdateOrder                  = "updateOrder"
-	NotifyUser                   = "notifyUser"
-	RealTimeUpdate               = "realTimeUpdateToUser"
-	LimitOrders                  = "limitOrders"
-	OrderToCancel                = "orderToCancel"
-	LivePriceQueue               = "liveprice"
-	SltpOrderClose               = "sltpOrderClose"
+	UpdateOrder                   = "updateOrder"
+	NotifyUser                    = "notifyUser"
+	RealTimeUpdate                = "realTimeUpdateToUser"
+	LimitOrders                   = "limitOrders"
+	OrderToCancel                 = "orderToCancel"
+	LivePriceQueue                = "liveprice"
+	SltpOrderClose                = "sltpOrderClose"
 	OrderCloseBecauseOfLowBalance = "orderCloseBecauseOfLowBalance"
 
 	RedisNil = "redis: nil"
 )
+
+type CancelOrders struct {
+	Id      string
+	Symbol  string
+	OrderId string
+	Side    string
+}
 
 type Order struct {
 	OrderId string  `json:"orderId"`
@@ -35,4 +42,3 @@ type LivePrice struct {
 	Symbol string  `json:"symbol"`
 	Price  float64 `json:"price"`
 }
- 
