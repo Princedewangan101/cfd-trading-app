@@ -54,7 +54,7 @@ async function executeBuckets(
             if (order.symbol !== symbol) continue;
             const payload = JSON.stringify({ from: "engine", orderId: order.orderId, userId: order.userId, openPrice: livePrice });
             await nc.publish(SUBJECTS.ORDER_EXECUTED, payload);
-            removeOrderEverywhere(order.orderId, side);
+            removeOrderEverywhere(order.orderId);
             console.log("> executed", side, "limit order :", order.orderId, "@", livePrice);
         }
         if (buckets.get(bucketPrice)?.length === 0) {
@@ -91,7 +91,7 @@ async function scanTpSl(nc: NatsConnection, symbol: string, livePrice: number) {
             orderObj: { orderId: order.orderId, userId: order.userId, tp: order.tp, sl: order.sl, symbol: order.symbol, side: order.side },
         });
         await nc.publish(SUBJECTS.ORDER_COMPLETED, payload);
-        removeOrderEverywhere(order.orderId, order.side);
+        removeOrderEverywhere(order.orderId);
         console.log("> TP/SL closed order :", order.orderId);
     }));
 }

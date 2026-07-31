@@ -34,9 +34,9 @@ export function setupRequestHandlers(nc: NatsConnection) {
         callback: (err, msg) => {
             if (err) return;
             try {
-                const { orderId, side } = JSON.parse(msg.data.toString()) as { orderId: string; side: Side };
+                const { orderId } = JSON.parse(msg.data.toString()) as { orderId: string; side: Side };
                 if (!orderId) throw new Error("missing orderId in order.cancel");
-                removeOrderEverywhere(orderId, side);
+                removeOrderEverywhere(orderId);
                 msg.respond(JSON.stringify({ success: true }));
             } catch (error: any) {
                 console.log("ERROR (engine.order.cancel) :", error.message);
@@ -81,7 +81,7 @@ export function setupRequestHandlers(nc: NatsConnection) {
                 if (livePrice === undefined) {
                     throw new Error(`no live price for ${symbol}`);
                 }
-                removeOrderEverywhere(orderId, "BUY");
+                removeOrderEverywhere(orderId);
                 msg.respond(JSON.stringify({ success: true, id, closePrice: livePrice }));
             } catch (error: any) {
                 console.log("ERROR (engine.order.close) :", error.message);
