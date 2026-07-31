@@ -16,6 +16,12 @@ export const SUBJECTS = {
 
 export type Side = "BUY" | "SELL";
 
+export type Price = number;
+export type LatestPrice = number;
+export type Symbol = string;
+export type UserId = string;
+export type OrderId = string;
+
 export interface LimitOrder {
     orderId: string;
     userId: string;

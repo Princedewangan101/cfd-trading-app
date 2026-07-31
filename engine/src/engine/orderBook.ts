@@ -1,24 +1,24 @@
-import type { LimitOrder, Side, TpSlOrder } from "../type/type.js";
+import type { LimitOrder, Side, TpSlOrder, Price, UserId, OrderId, LatestPrice, Symbol } from "../type/type.js";
 
 // price-bucketed order lists (BTreeMap-like, add/remove/modify per bucket)
-export const buyLimitOrders = new Map<number, LimitOrder[]>();
-export const sellLimitOrders = new Map<number, LimitOrder[]>();
+export const buyLimitOrders = new Map<Price, LimitOrder[]>();
+export const sellLimitOrders = new Map<Price, LimitOrder[]>();
 
 // userId -> all orderIds of that user (bulk removal on low balance)
-export const userOrdersLookup = new Map<string, Set<string>>();
+export const userOrdersLookup = new Map<UserId, Set<OrderId>>();
 
 // existence check + targeted order removal per side
-export const buyOrdersLookup = new Set<string>();
-export const sellOrdersLookup = new Set<string>();
+export const buyOrdersLookup = new Set<OrderId>();
+export const sellOrdersLookup = new Set<OrderId>();
 
 // orderId -> {tp, sl, symbol, side, userId, openPrice} for TP/SL scanning
-export const tpSlOrderMap = new Map<string, TpSlOrder>();
+export const tpSlOrderMap = new Map<OrderId, TpSlOrder>();
 
 // symbol -> latest price
-export const livePrices = new Map<string, number>();
+export const livePrices = new Map<Symbol, LatestPrice>();
 
-// internal index to locate the price bucket for an order (needed to remove from Map<price, Order[]>)
-const orderBucketIndex = new Map<string, { side: Side; price: number; userId: string }>();
+// internal index to locate the price bucket for an order (needed to remove from Map<price, Order[]>)a
+const orderBucketIndex = new Map<OrderId, { side: Side; price: number; userId: string }>();
 
 export function getBucket(side: Side): Map<number, LimitOrder[]> {
     return side === "BUY" ? buyLimitOrders : sellLimitOrders;

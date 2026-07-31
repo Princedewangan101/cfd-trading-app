@@ -6,10 +6,10 @@ async function main() {
     const nc = await getNats();
     setupRequestHandlers(nc);
     setupPriceListener(nc);
-    console.log("> engine service is running (limit order + TP/SL combined)");
+    console.log("\n> engine service is running (limit order + TP/SL combined)");
 }
 
 main().catch(error => {
-    console.log("ERROR (engine main) :", error.message);
+    console.log("\n> [ERROR] (engine main) :", error.message);
     process.exit(1);
 });
