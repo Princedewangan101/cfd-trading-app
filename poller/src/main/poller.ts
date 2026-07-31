@@ -5,7 +5,8 @@ import { getNats } from '../config/nats.js';
 import type { NatsConnection } from 'nats';
 import { saveCandle } from './utils.js';
 
-if (!process.env.BACKPACK_URL) {
+const BACKPACK_URL = process.env.BACKPACK_URL;
+if (!BACKPACK_URL) {
     throw new Error("BACKPACK_WS_URL is not defined in .env file");
 }
 
@@ -31,7 +32,7 @@ async function ensureNats() {
 export const startPoller = async () => {
     ensureNats();
 
-    let ws: WebSocket = new WebSocket(process.env.BACKPACK_URL)
+    let ws: WebSocket = new WebSocket(BACKPACK_URL)
 
     ws.on("open", () => {
         ws.send(
