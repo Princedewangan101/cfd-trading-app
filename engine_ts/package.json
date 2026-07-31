@@ -13,12 +13,10 @@
     "prod": "npm run build $ npm run start"
   },
   "dependencies": {
-    "ioredis": "^5.10.1",
-    "kafkajs": "^2.2.4",
+    "nats": "^2.29.3",
     "tsx": "^4.22.4"
   },
   "devDependencies": {
-    "@types/ioredis": "^4.28.10",
-    "@types/kafkajs": "^1.8.2"
+    "@types/node": "^26.1.2"
   }
 }
