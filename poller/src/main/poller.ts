@@ -2,20 +2,36 @@ import { WebSocket } from 'ws';
 import { redis } from '../config/redis.js';
 import { prisma } from '../lib/prisma.js';
 import { getNats } from '../config/nats.js';
+import type { NatsConnection } from 'nats';
 import { saveCandle } from './utils.js';
 
 if (!process.env.BACKPACK_URL) {
     throw new Error("BACKPACK_WS_URL is not defined in .env file");
 }
 
-let ws: WebSocket = new WebSocket(process.env.BACKPACK_URL)
-
 // const klineSymbol = ["kline.1m.ETH_USDC", "kline.1m.BTC_USDC", "kline.1m.SOL_USDC"]
 const klineSymbol = ["kline.1m.BTC_USDC"]
 
+let nc: NatsConnection | null = null;
+let connecting = false;
+
+async function ensureNats() {
+    if (nc || connecting) return;
+    connecting = true;
+    try {
+        nc = await getNats();
+    } catch (error: any) {
+        console.log("\n> [ERROR] (poller.ts) :", error.message, "- retrying NATS in 1s");
+        setTimeout(ensureNats, 1000);
+    } finally {
+        connecting = false;
+    }
+}
+
 export const startPoller = async () => {
-    const nc = await getNats();
-    const priceSubject = (symbol: string) => `price.${symbol}`;
+    ensureNats();
+
+    let ws: WebSocket = new WebSocket(process.env.BACKPACK_URL)
 
     ws.on("open", () => {
         ws.send(
@@ -41,9 +57,11 @@ export const startPoller = async () => {
                 if (price !== lastPrice) {
                     // "2375633"
                     await redis.set(`LIVE-PRICE-${parsedData.data.s}`, price)
-                    await nc.publish(priceSubject(parsedData.data.s), JSON.stringify({ symbol: parsedData.data.s, price: Number(price) }))
+                    if (nc) {
+                        await nc.publish(`price.${parsedData.data.s}`, JSON.stringify({ symbol: parsedData.data.s, price: Number(price) }))
+                    }
                     lastPrice = price
-                    console.log("PRICE :", price);
+                    console.log("\n> [DATA] (poller.ts) :", { symbol: parsedData.data.s, price });
                 }
             }
 
@@ -61,17 +79,21 @@ export const startPoller = async () => {
             }
 
         } catch (error: any) {
-            console.log("\n> ERROR (poller.ts) :", error.message);
+            console.log("\n> [ERROR] (poller.ts) :", error.message);
         }
     });
 
     ws.on("close", () => {
-        console.log("closing ws connection with backpack");
+        console.log("\n> [INFO] (poller.ts) : closing ws connection with backpack, reconnecting in 1s");
         setTimeout(startPoller, 1000);
+    });
+
+    ws.on("error", (error: any) => {
+        console.log("\n> [ERROR] (poller.ts) :", error.message);
     });
 };
 
-
+// don't remove it
 // parsedData : {
 //   data: {
 //     E: 1780411795696625,
@@ -89,4 +111,3 @@ export const startPoller = async () => {
 //   },
 //   stream: 'kline.1m.BTC_USDC'
 // }
-

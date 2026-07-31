@@ -5,6 +5,8 @@ import * as grpc from '@grpc/grpc-js';
 import { initGrpc } from "../grpc/server";
 
 const server = new grpc.Server();
-startPoller();
+startPoller().catch(error => {
+    console.log("\n> [ERROR] (server.ts) :", error.message);
+});
 
 initGrpc(server)
