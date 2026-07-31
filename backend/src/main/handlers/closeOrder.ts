@@ -1,12 +1,12 @@
 import { type Request, type Response } from 'express';
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
+import { natsRequest } from '../../config/nats.js';
 import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
+import { SUBJECTS } from '../../type/type.js';
 import { success } from 'zod';
 
 type engineResult = {success:boolean, id:string, closePrice:string}
-
-let resolveStore:any[] = [] // {id:"1426", resolve}
 
 export async function closeOrder(req: Request, res: Response) {
     console.log("\n\n> /api/close (api call)");
@@ -27,11 +27,7 @@ export async function closeOrder(req: Request, res: Response) {
         
         const id = crypto.randomUUID()
         
-        const engineResult:engineResult = await new Promise(async (resolve) => { 
-            resolveStore.push({id, promiseResolve:resolve})
-            console.log("\n> QUEUE 'closeOrder' : " , {id, symbol:order.symbol});
-            await redis.lpush("closeOrder", JSON.stringify({id, symbol:order.symbol}))
-        })
+        const engineResult: engineResult = await natsRequest<engineResult>(SUBJECTS.ORDER_CLOSE, { id, symbol: order.symbol }, 5000);
         if (!engineResult.success) {
             console.log("\n> engineResult :", engineResult);
             return res.status(400).json({success:false, message:"Failed to close order."})
@@ -126,35 +122,13 @@ export async function closeOrder(req: Request, res: Response) {
     }
 }
 
- async function setBalance(userId: string, avaBal:number, lockBal:number) {   
+async function setBalance(userId: string, avaBal:number, lockBal:number) {
     const totalBalance = String(Number(avaBal) + Number(lockBal))
     await redis.set(`totalBalance:${userId}`, totalBalance, "EX", 3600)
     await redis.set(`availableBalance:${userId}`, String(avaBal), "EX", 3600);
     await redis.set(`lockedBalance:${userId}`, String(lockBal), "EX", 3600);
-                        
+
     console.log("\n> total bal :", totalBalance);
     console.log("\n> ava bal :", avaBal);
     console.log("\n> lock bal :", lockBal);
-}
-
-handleMessage()
-
-async function handleMessage() {
-    while (true) {
-        const result =  await redis.rpop("closeOrderResult") || 0 // { id, closePrice }
-        if (result === 0) {
-                continue
-        }else{
-                    const parsedResult = JSON.parse(result)
-                    console.log("\n>> --------------- handleMessage start \n> DE-QUEUE 'closeOrderResult' : ", parsedResult);
-                
-                    const {id} = parsedResult
-                    const resolveObj = resolveStore.find((r) => r.id === id)
-                    console.log("\n> resolveObj", resolveObj);
-                    const resolve = resolveObj.promiseResolve
-                    resolve(parsedResult)
-                    resolveStore = resolveStore.filter((r) => r.id != id)
-                    console.log("\n>> --------------- handleMessage end")
-        }
-    }
 }

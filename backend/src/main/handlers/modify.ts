@@ -1,6 +1,8 @@
 import { type Request, type Response } from 'express';
 import { prisma } from '../../config/db.js';
 import { redis } from '../../config/redis.js';
+import { natsRequest } from '../../config/nats.js';
+import { SUBJECTS } from '../../type/type.js';
 
 export async function modify(req: Request, res: Response) {
     const userId = req.userId;
@@ -47,7 +49,7 @@ export async function modify(req: Request, res: Response) {
             break;
     }
 
-    await redis.lpush("sltpOrderClose", JSON.stringify({ orderId, userId, side, symbol,tp,sl }));
+    await natsRequest(SUBJECTS.ORDER_TP_SL, { orderId, userId, symbol, side, tp, sl, openPrice });
 
     const result = await prisma.order.update({
         where: { orderId, userId },

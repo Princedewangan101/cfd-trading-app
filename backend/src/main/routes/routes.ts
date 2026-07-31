@@ -10,6 +10,7 @@ import { limitOrder } from '../handlers/limitOrder.js';
 import { marketOrder } from '../handlers/marketOrder.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { candles } from '../handlers/getCandles.js';
+import { sseHandler } from '../sse/sse.js';
 
 const router = Router()
 
@@ -38,6 +39,8 @@ router.post('/withdraw', withdraw)
 
 router.post('/signin', signin)
 router.post('/signup', signup)
+
+router.get('/events', sseHandler)
 
 
 export default router

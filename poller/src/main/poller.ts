@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws';
 import { redis } from '../config/redis.js';
 import { prisma } from '../lib/prisma.js';
+import { getNats } from '../config/nats.js';
 import { saveCandle } from './utils.js';
 
 if (!process.env.BACKPACK_URL) {
@@ -13,6 +14,9 @@ let ws: WebSocket = new WebSocket(process.env.BACKPACK_URL)
 const klineSymbol = ["kline.1m.BTC_USDC"]
 
 export const startPoller = async () => {
+    const nc = await getNats();
+    const priceSubject = (symbol: string) => `price.${symbol}`;
+
     ws.on("open", () => {
         ws.send(
             JSON.stringify({
@@ -37,7 +41,7 @@ export const startPoller = async () => {
                 if (price !== lastPrice) {
                     // "2375633"
                     await redis.set(`LIVE-PRICE-${parsedData.data.s}`, price)
-                    // await redis.lpush("liveprice", JSON.stringify({ symbol: parsedData.data.s, price: price }))
+                    await nc.publish(priceSubject(parsedData.data.s), JSON.stringify({ symbol: parsedData.data.s, price: Number(price) }))
                     lastPrice = price
                     console.log("PRICE :", price);
                 }

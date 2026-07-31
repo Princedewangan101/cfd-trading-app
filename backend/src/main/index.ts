@@ -4,6 +4,7 @@ import cors from "cors";
 import router from "./routes/routes.js";
 import { corsOptions } from "../config/corsConfig.js";
 import cookieParser from "cookie-parser";
+import { setupEventHandler } from "./queueHandler/handler.js";
 
 const app = express();
 
@@ -11,8 +12,7 @@ app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 // app.use(express.urlencoded({ extended: true }));
-// startPoller();
-// handleMessage()
+setupEventHandler();
 
 app.use('/api', router);
 

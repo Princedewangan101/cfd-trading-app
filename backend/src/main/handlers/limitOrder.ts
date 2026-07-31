@@ -1,9 +1,11 @@
 import { type Request, type Response } from 'express';
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
+import { natsRequest } from '../../config/nats.js';
 import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
 import { OrderStatus } from '../../generated/prisma/client.js';
 import { check } from '../util/IdempotencyCheck.js';
+import { SUBJECTS } from '../../type/type.js';
 
 // 1. IDEMPOTENCY CHECK.
 // 2. CHECKED THAT USER HAS ENOUGH AVAILABLE BALANCE OR NOT (IF AVAILABLE BALANCE IS NOT IN CACHE THEN, WE FETCH FROM DB AND USE IT, CACHE IT).
@@ -111,8 +113,8 @@ export async function limitOrder(req: Request, res: Response) {
 
         const { orderId, openPrice, status, createdAt } = result.transactionResult;
 
-        // PUSHING ORDER INTO REDIS FOR : LIMIT-ORDER-MATCHING ()
-        await redis.lpush("limitOrders", JSON.stringify({ orderId, userId, symbol, side, price }));
+        // PUSHING ORDER INTO ENGINE VIA NATS FOR : LIMIT-ORDER-MATCHING ()
+        await natsRequest(SUBJECTS.LIMIT_ORDER_SUBMIT, { orderId, userId, symbol, side, price, quantity, leverage });
 
         // IDEM RESPONSE SET
         await redis.set(`limitOrder${ikey}`, JSON.stringify({ orderId, price: openPrice, createdAt }))
