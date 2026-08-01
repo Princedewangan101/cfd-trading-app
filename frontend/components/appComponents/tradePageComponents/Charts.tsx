@@ -202,7 +202,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
           }
         </div>
         <div className="flex gap-1 ml-auto mr-3 h-full items-center">
-          <div className="flex items-center px-2 text-sm tabular-nums text-gray-300">{clock}</div>
+          <div className="flex items-center rounded bg-zinc-800 px-2 py-0.5 text-sm tabular-nums text-gray-400">{clock}</div>
           {
             chartAdjuster.map((x) =>
               <div
