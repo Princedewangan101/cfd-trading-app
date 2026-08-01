@@ -8,7 +8,13 @@ import React from 'react'
 
 const AuthPage = () => {
     const router = useRouter();
-    const [authPage, setAuthPage] = React.useState<"signin" | "signup">("signup");
+    const [authPage, setAuthPage] = React.useState<"signin" | "signup">(() => {
+        if (typeof window !== "undefined") {
+            const mode = new URLSearchParams(window.location.search).get("mode");
+            return mode === "signin" ? "signin" : "signup";
+        }
+        return "signup";
+    });
 
     function changeAuthPage() {
         return authPage === "signup" ? setAuthPage("signin") : setAuthPage("signup")
@@ -42,7 +48,7 @@ const AuthPage = () => {
         <main className='w-screen h-screen flex items-center justify-center'>
 
             <div className="boxShadow flex flex-col justify-center w-full max-w-80 rounded-xl px-6 py-8 border bg-zinc border-border text-white text-sm">
-                <h2 className="text-2xl font-semibold">{authPage === "signup" ? "Sign Up" : "Sign In"}</h2>
+                <h2 className="text-2xl font-semibold">{authPage === "signup" ? "Sign Up" : "Log in"}</h2>
                 <form onSubmit={handleAuthenthication} className="mt-8">
                     {authPage === "signup" &&
                         <>
@@ -66,11 +72,11 @@ const AuthPage = () => {
                     }
 
                     <button type="submit" className="w-full mt-6 mb-4 px-4 py-2.5 font-medium text-white bg-ind rounded-md hover:bg-ind-dark focus:outline-none">
-                        {authPage === "signup" ? "Sign Up" : "Sign In"}
+                        {authPage === "signup" ? "Sign Up" : "Log in"}
                     </button>
 
                     <p className='text-xs'>{authPage === "signup" ? "Already have an account ? " : "Want to create new ? "}
-                        <span className='cursor-pointer' onClick={changeAuthPage}>{authPage === "signup" ? "Sign In" : "Sign Up"} </span>
+                        <span className='cursor-pointer' onClick={changeAuthPage}>{authPage === "signup" ? "Log in" : "Sign Up"} </span>
                     </p>
                 </form>
             </div>

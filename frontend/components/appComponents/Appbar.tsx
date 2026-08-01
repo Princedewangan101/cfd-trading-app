@@ -3,8 +3,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Button } from '../ui/button'
 import { useAppStore } from '@/store/store'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { ArrowUpRight, CandlestickChart, ChevronDown, Plus, ReceiptText, Settings, User } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { ArrowUpRight, CandlestickChart, ChevronDown, LogOut, Plus, ReceiptText, Settings, User } from 'lucide-react'
 
 const NAV_LINKS = [
     { href: "/market", label: "Markets", match: (path: string) => path === "/market" || path === "/" },
@@ -23,8 +23,15 @@ const Appbar = () => {
     const userId = useAppStore((state) => state.userId)
     const userName = useAppStore((state) => state.userName)
     const pathname = usePathname()
+    const router = useRouter()
     const menuRef = useRef<HTMLDivElement>(null)
     const [menuOpen, setMenuOpen] = useState(false)
+
+    function handleLogout() {
+        setMenuOpen(false)
+        useAppStore.setState({ userId: "", userName: "" })
+        router.push("/auth")
+    }
 
     useEffect(() => {
         if (!menuOpen) return
@@ -125,14 +132,27 @@ const Appbar = () => {
                                         </Link>
                                     ))}
                                 </div>
+                                <div className='border-t border-zinc-800 p-1'>
+                                    <button
+                                        type="button"
+                                        onClick={handleLogout}
+                                        className='flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-gray-300 transition-colors hover:bg-red-500/10 hover:text-red-400'
+                                    >
+                                        <LogOut className='h-4 w-4 text-gray-500' />
+                                        Log out
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             ) : (
-                <div className='ml-auto'>
+                <div className='ml-auto flex items-center gap-3'>
                     <Button asChild size="sm" variant="outline" className='text-gray-300'>
-                        <Link href="/auth">Login</Link>
+                        <Link href="/auth?mode=signin">Login</Link>
+                    </Button>
+                    <Button asChild size="sm" className='bg-ind text-white hover:bg-ind-dark'>
+                        <Link href="/auth?mode=signup">Sign up</Link>
                     </Button>
                 </div>
             )}
