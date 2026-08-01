@@ -2,18 +2,18 @@
 
 import LeverageSlider from '@/components/ui/LeverageSlider';
 import React from 'react'
-import axios from 'axios'
-import { BACKEND_URL } from '@/lib/url';
-import { config } from '@/lib/config';
-import { showActionPromise } from '@/lib/toast';
+import { useOrder } from '@/hooks/useOrder';
 
 
 const OrderPanel = ({ symbol }: { symbol: string }) => {
   const [quantity, setQuantity] = React.useState<number | string>("");
+  const [price, setPrice] = React.useState<string>("");
 
   const [leverageSliderValue, setLeverageSliderValue] = React.useState([1, 400])
-  const [side, setSide] = React.useState<"BUY" | "SELL" | "PROCESS">("BUY");
+  const [side, setSide] = React.useState<"BUY" | "SELL">("BUY");
   const [orderType, setOrderType] = React.useState<"market" | "limit">("market");
+
+  const order = useOrder();
 
   const markPrice = 67000;
   const notional = markPrice * Number(quantity || 0);
@@ -26,22 +26,18 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
   function handleOrderSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const formData = new FormData(e.currentTarget);
-    formData.append("side", side);
-    formData.append("orderType", orderType);
-    formData.append("leverage", leverageSliderValue[1].toString());
-    formData.append("symbol", symbol);
+    if (orderType === "limit" && !price) return;
 
-    const payload = Object.fromEntries(formData.entries());
-
-    console.log("payload :", payload);
-
-    const url = orderType === "market" ? BACKEND_URL.tradeMarket : BACKEND_URL.tradeLimit;
-    console.log("url :", url);
-
-    showActionPromise(orderType, () =>
-      axios.post(url, { ...payload, ikey: crypto.randomUUID() }, config)
-    );
+    order.mutate({
+      orderType,
+      payload: {
+        symbol,
+        side,
+        quantity: Number(quantity),
+        leverage: leverageSliderValue[1],
+        price: orderType === "limit" ? Number(price) : undefined,
+      },
+    });
   }
 
   const inputClass = "w-full rounded-lg bg-zinc-900/70 p-2.5 text-sm text-gray-200 placeholder:text-gray-600 outline-none transition-colors focus:bg-zinc-900/90 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
@@ -111,7 +107,16 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
       {orderType === "limit" && (
         <div>
           <label htmlFor="price" className="mb-1.5 block text-sm font-medium text-slate-300">Price</label>
-          <input type="number" id="price" name="price" placeholder="63867.90" className={inputClass} />
+          <input
+            required
+            type="number"
+            id="price"
+            name="price"
+            placeholder="63867.90"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className={inputClass}
+          />
         </div>
       )}
 
@@ -143,9 +148,22 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
       {/* PLACE ORDER BTN */}
       <button
         type="submit"
-        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 ${side === "BUY" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500 hover:bg-red-600"}`}
+        disabled={order.isPending}
+        className={`flex h-11 w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-80 ${side === "BUY" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500 hover:bg-red-600"}`}
       >
-        {side === "BUY" ? "Buy / Long" : "Sell / Short"}
+        {order.isPending ? (
+          <span className="flex items-center gap-1">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="h-1.5 w-1.5 rounded-full bg-white animate-dotBounceY"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </span>
+        ) : (
+          side === "BUY" ? "Buy / Long" : "Sell / Short"
+        )}
       </button>
     </form>
   )
