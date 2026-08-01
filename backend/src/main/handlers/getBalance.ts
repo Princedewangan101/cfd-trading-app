@@ -1,4 +1,4 @@
-import { response, type Request, type Response } from 'express';
+import { type Request, type Response } from 'express';
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
 
@@ -17,46 +17,29 @@ export async function balance(req: Request, res: Response) {
     }
 
     try {
-        const totalBalance = await redis.get(`totalBalance:${userId}`);
-        console.log("\n> totalBalance (GET FROM CACHE) :", totalBalance ? totalBalance : "BAL NOT IN CACHE.");
+        const balance = await redis.get(`balance:${userId}`);
+        console.log("\n> balance (GET FROM CACHE) :", balance ? balance : "BAL NOT IN CACHE.");
 
-        if (totalBalance) {
-            const availableBalance = await redis.get(`availableBalance:${userId}`);
-            const lockedBalance = await redis.get(`lockedBalance:${userId}`);
-            if (!availableBalance || !lockedBalance) {
-                return res.status(404).json({ success: false, message: "Balance not found !" });
-            }
-            const parseTotalBalance = JSON.parse(totalBalance);
-            const parseAvailableBalance = JSON.parse(availableBalance);
-            const parseLockedBalance = JSON.parse(lockedBalance);
+        if (balance) {
+            const parseBalance = JSON.parse(balance);
 
-            console.log("\n> parseTotalBalance :", parseTotalBalance);
+            console.log("\n> parseBalance :", parseBalance);
 
-            return res.status(200).json({ success: true, totalBalance: Number(parseTotalBalance), availableBalance: Number(parseAvailableBalance), lockedBalance: Number(parseLockedBalance) });
+            return res.status(200).json({ success: true, balance: Number(parseBalance) });
         } else {
             console.log("\n> FETCHING DB....");
             const result = await prisma.user.findUnique({
                 where: { userId },
-                select: { availableBalance: true, lockedBalance: true }
+                select: { balance: true }
             })
             if (!result) {
                 return res.status(404).json({ success: false, message: "Failed to get balance." });
             }
 
-            const totalBalance = Number(result.availableBalance) + Number(result.lockedBalance)
-            console.log("\n> totalBalance (FETCH FROM DB) :", totalBalance);
+            console.log("\n> balance (FETCH FROM DB) :", result.balance);
 
-            await redis.set(`totalBalance:${userId}`, `${totalBalance}`, "EX", 3600);
-            await redis.set(`availableBalance:${userId}`, `${result.availableBalance}`, "EX", 3600);
-            await redis.set(`lockedBalance:${userId}`, `${result.lockedBalance}`, "EX", 3600);
-            return res.status(200).json({ success: true, totalBalance: totalBalance, availableBalance: result.availableBalance, lockedBalance: result.lockedBalance });
-
-            // const result = await prisma.transaction.aggregate({
-            //     where: { userId },
-            //     _sum: { amount: true }
-            // })
-            // await redis.set(`totalBalance:${userId}`, `${result._sum.amount}`, "EX", 3600);
-            // return res.status(200).json({ success: true, totalBalance: result._sum.amount });
+            await redis.set(`balance:${userId}`, `${result.balance}`, "EX", 3600);
+            return res.status(200).json({ success: true, balance: result.balance });
         }
     } catch (error: any) {
         console.log(">> ERROR (getBalance) : ", error.message);

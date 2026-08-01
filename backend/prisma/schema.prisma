@@ -17,8 +17,7 @@ model User {
   email            String  @unique
   userName         String 
   password         String 
-  availableBalance Int     @default(0)
-  lockedBalance    Int     @default(0)
+  balance          Int     @default(0)
   isProfitable     Boolean @default(false)
   pendingOrder     Int     @default(0)
   activeOrder      Int     @default(0)

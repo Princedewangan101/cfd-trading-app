@@ -4,7 +4,6 @@ import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
 import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
 import { SUBJECTS } from '../../type/type.js';
-import { success } from 'zod';
 
 type engineResult = {success:boolean, id:string, closePrice:string}
 
@@ -46,8 +45,6 @@ export async function closeOrder(req: Request, res: Response) {
         
         console.log("\n> releaseBalance :", releaseBalance);
 
-        let availableBalance:number;
-        let lockedBalance:number;
         const result = await prisma.$transaction(async (tx: any) => {
             if (pnl > 0) {
                 await tx.transaction.create({
@@ -55,60 +52,42 @@ export async function closeOrder(req: Request, res: Response) {
                         orderId, userId, type: TransactionType.PROFIT, amount: pnl
                     }
                 })
-
-                const availableBalanceIncrement: number = Number(releaseBalance) + Number(pnl)
-
-                const result = await tx.user.update({
-                    where: { userId },
-                    data: { lockedBalance: { decrement: Number(releaseBalance) }, availableBalance: { increment: Number(availableBalanceIncrement) } }
-                })
-                availableBalance = Number(result.availableBalance), lockedBalance = Number(result.lockedBalance)
             } else {
                 await tx.transaction.create({
                     data: {
                         orderId, userId, type: TransactionType.LOSS, amount: pnl
                     }
                 });
-
-                const islossGreaterThanReleaseBalance = releaseBalance < pnl ? true : false;
-
-                if (islossGreaterThanReleaseBalance) {
-                    const lossAmountOutOfLockBalance = pnl - releaseBalance
-
-                    const result = await tx.user.update({
-                        where: { userId },
-                        data: { lockedBalance: { decrement: Number(releaseBalance) }, availableBalance: { decrement: Number(lossAmountOutOfLockBalance) } }
-                    });
-                   availableBalance = Number(result.availableBalance), lockedBalance = Number(result.lockedBalance)
-                } else {
-                    const restAmountOfTheLockBalanaceForThisTrade = releaseBalance - pnl
-
-                    const result = await tx.user.update({
-                        where: { userId },
-                        data: { lockedBalance: { decrement: Number(pnl) }, availableBalance: { increment: Number(restAmountOfTheLockBalanaceForThisTrade) } }
-                    });
-                   availableBalance = Number(result.availableBalance), lockedBalance = Number(result.lockedBalance)
-                }
             }
 
+            const balanceIncrement: number = Number(releaseBalance) + Number(pnl)
+
+            await tx.user.update({
+                where: { userId },
+                data: { balance: { increment: Number(balanceIncrement) } }
+            });
+
             await tx.$queryRaw`SELECT * FROM "Order" WHERE "userId" = ${userId} FOR UPDATE`
-            const result = await tx.order.update({
+            const orderResult = await tx.order.update({
                 where: { orderId, userId },
                 data: {
                     status: OrderStatus.COMPLETED, closePrice: engineResult.closePrice,
                 },
                 select: { orderId: true, status: true, closePrice: true }
             })
-            return { orderId: result.orderId, status: result.status, closePrice: result.closePrice, availableBalance, lockedBalance }
+
+            const balanceResult = await tx.user.findUnique({ where: { userId }, select: { balance: true } })
+
+            return { orderId: orderResult.orderId, status: orderResult.status, closePrice: orderResult.closePrice, balance: balanceResult?.balance }
         }, { maxWait: 5000, timeout: 10000 })
 
         if (!result) {
             res.status(400).json({success : false, message:"failed to close order."})
         }
-        
+
         const { status } = result
 
-        await setBalance(userId, Number(result.availableBalance), Number(result.lockedBalance))
+        await setBalance(userId, Number(result.balance))
         
         // await redis.lpush("orderToCancel", JSON.stringify({orderId, side:order.side })) 
 
@@ -122,13 +101,7 @@ export async function closeOrder(req: Request, res: Response) {
     }
 }
 
-async function setBalance(userId: string, avaBal:number, lockBal:number) {
-    const totalBalance = String(Number(avaBal) + Number(lockBal))
-    await redis.set(`totalBalance:${userId}`, totalBalance, "EX", 3600)
-    await redis.set(`availableBalance:${userId}`, String(avaBal), "EX", 3600);
-    await redis.set(`lockedBalance:${userId}`, String(lockBal), "EX", 3600);
-
-    console.log("\n> total bal :", totalBalance);
-    console.log("\n> ava bal :", avaBal);
-    console.log("\n> lock bal :", lockBal);
+async function setBalance(userId: string, balance:number) {
+    await redis.set(`balance:${userId}`, String(balance), "EX", 3600);
+    console.log("\n> balance :", balance);
 }

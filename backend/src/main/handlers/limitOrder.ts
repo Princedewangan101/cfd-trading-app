@@ -8,8 +8,8 @@ import { check } from '../util/IdempotencyCheck.js';
 import { SUBJECTS } from '../../type/type.js';
 
 // 1. IDEMPOTENCY CHECK.
-// 2. CHECKED THAT USER HAS ENOUGH AVAILABLE BALANCE OR NOT (IF AVAILABLE BALANCE IS NOT IN CACHE THEN, WE FETCH FROM DB AND USE IT, CACHE IT).
-// 3. ATOMIC TRANSACTION : DECREMENT AVAILABLE BALANCE, INCREMENT LOCK BALANCE IN USER TABLE, RECORD TRANSACTION, CREATE IKEY RECORD.
+// 2. CHECKED THAT USER HAS ENOUGH BALANCE OR NOT (IF BALANCE IS NOT IN CACHE THEN, WE FETCH FROM DB AND USE IT, CACHE IT).
+// 3. ATOMIC TRANSACTION : DECREMENT BALANCE IN USER TABLE, RECORD TRANSACTION, CREATE IKEY RECORD.
 // 4. PUSH ORDER INTO REDIS SORTED SET FOR LIMIT ORDER MATCHING
 
 export async function limitOrder(req: Request, res: Response) {
@@ -49,33 +49,33 @@ export async function limitOrder(req: Request, res: Response) {
 
         const orderCost = Number(quantity) * (Number(price) / Number(leverage));
 
-        let availableBalance;
-        let userAvailableBalanceQuery;
+        let balance;
+        let userBalanceQuery;
 
-        const isAvailableBalanceInCache = await redis.exists(`availableBalance:${userId}`)
-        console.log("\n> isAvailableBalanceInCache :", isAvailableBalanceInCache === 0 ? "AVA. BAL. 'NOT' IN CACHE" : "AVA. BAL. IN CACHE");
+        const isBalanceInCache = await redis.exists(`balance:${userId}`)
+        console.log("\n> isBalanceInCache :", isBalanceInCache === 0 ? "BAL. 'NOT' IN CACHE" : "BAL. IN CACHE");
 
-        if (isAvailableBalanceInCache === 1) {
-            availableBalance = await redis.get(`availableBalance:${userId}`)
-            console.log("\n> availableBalance (GET-FROM-CACHE) :", availableBalance);
+        if (isBalanceInCache === 1) {
+            balance = await redis.get(`balance:${userId}`)
+            console.log("\n> balance (GET-FROM-CACHE) :", balance);
         } else {
             console.log("\n> FETCHING BAL IN DB ...");
-            userAvailableBalanceQuery = await prisma.user.findUnique({ where: { userId }, select: { availableBalance: true } })
-            if (!userAvailableBalanceQuery) {
+            userBalanceQuery = await prisma.user.findUnique({ where: { userId }, select: { balance: true } })
+            if (!userBalanceQuery) {
                 console.log("\n> ---------- ERROR : Failed to fetch balance.");
                 return res.status(404).json({ success: false, message: "Failed to fetch balance." })
             }
-            console.log("\n> userAvailableBlnceQuery (FETCH FROM DB) :", userAvailableBalanceQuery.availableBalance);
-            availableBalance = userAvailableBalanceQuery.availableBalance
-            await redis.set(`availableBalance:${userId}`, String(availableBalance), "EX", 3600);
+            console.log("\n> userBalanceQuery (FETCH FROM DB) :", userBalanceQuery.balance);
+            balance = userBalanceQuery.balance
+            await redis.set(`balance:${userId}`, String(balance), "EX", 3600);
         }
-        console.log(`\n> {p:${price}, oc:${orderCost}, avb:${availableBalance}`);
+        console.log(`\n> {p:${price}, oc:${orderCost}, bal:${balance}`);
 
-        if (!availableBalance) {
-            console.log("\n> ---------- ERROR : Available balance not found.");
-            return res.status(404).json({ success: false, message: "Available balance not found." })
+        if (!balance) {
+            console.log("\n> ---------- ERROR : Balance not found.");
+            return res.status(404).json({ success: false, message: "Balance not found." })
         }
-        const hasBalance = Number(availableBalance) >= Number(orderCost) ? true : false
+        const hasBalance = Number(balance) >= Number(orderCost) ? true : false
 
         if (!hasBalance) {
             console.log("\n> ---------- ERROR : Insufficient balance.");
@@ -86,7 +86,7 @@ export async function limitOrder(req: Request, res: Response) {
             await tx.$queryRaw`SELECT * FROM "User" WHERE "userId" = ${userId} FOR UPDATE`
             const updateBalanceResult = await tx.user.update({
                 where: { userId: userId },
-                data: { availableBalance: { decrement: Number(orderCost) }, lockedBalance: { increment: Number(orderCost) } }
+                data: { balance: { decrement: Number(orderCost) } }
             })
             const transactionResult = await tx.order.create({
                 data: {
@@ -95,21 +95,16 @@ export async function limitOrder(req: Request, res: Response) {
                 }
             })
 
-            return { transactionResult, availableBalance: updateBalanceResult.availableBalance, lockedBalance: updateBalanceResult.lockedBalance };
+            return { transactionResult, balance: updateBalanceResult.balance };
         })
         if (!result) {
             await setIdemResponse(ikey, userId, 'failed to create order !')
             return res.status(404).json({ success: false, message: "failed to create order !" })
         }
 
-        const totalBalance = String(Number(result.availableBalance) + Number(result.lockedBalance))
-        await redis.set(`totalBalance:${userId}`, `${totalBalance}`, "EX", 3600);
-        await redis.set(`availableBalance:${userId}`, String(result.availableBalance), "EX", 3600);
-        await redis.set(`lockedBalance:${userId}`, String(result.lockedBalance), "EX", 3600);
+        await redis.set(`balance:${userId}`, String(result.balance), "EX", 3600);
 
-        console.log("\n> total bal :", totalBalance);
-        console.log("\n> ava bal :", result.availableBalance);
-        console.log("\n> lock bal :", result.lockedBalance);
+        console.log("\n> balance :", result.balance);
 
         const { orderId, openPrice, status, createdAt } = result.transactionResult;
 

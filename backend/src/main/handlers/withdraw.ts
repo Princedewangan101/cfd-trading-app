@@ -37,45 +37,24 @@ export async function withdraw(req: Request, res: Response) {
             }
         }
 
-        // FETCHING ... LOCKED BALANCE
-        let lockedBalance;
-        lockedBalance = await redis.get(`lockedBalance:${userId}`);
-        console.log(`\n> lockedBalance (GET FROM CACHE) : ${lockedBalance}`);
+        // FETCHING ... BALANCE
+        const isBalanceInCache = await redis.get(`balance:${userId}`);
+        console.log("\n> isBalanceInCache (GET FROM CACHE) :", isBalanceInCache ? isBalanceInCache : "NO BAL IN CACHE");
 
-        if (!lockedBalance) {
-            const lockedBalanceQuery = await prisma.user.findUnique({
-                where: {
-                    userId: String(userId)
-                },
-                select: { lockedBalance: true }
-            })
-            if (!lockedBalanceQuery) {
-                console.log("\n> ------- ERROR : Failed to get locked balance. !");
-                return res.status(404).json({ success: false, message: "Failed to get locked balance." })
-            }
-            lockedBalance = lockedBalanceQuery.lockedBalance
-            await redis.set(`lockedBalance:${userId}`, String(lockedBalance), "EX", 3600)
-            console.log(`\n> lockedBalance (FETCH FROM DB) : ${lockedBalance}`);
-        }
+        let balance;
 
-        // FETCHING ... AVA. BAL.
-        const isAvailableBalanceInCache = await redis.get(`availableBalance:${userId}`);
-        console.log("\n> isAvailableBalanceInCache (GET FROM CACHE) :", isAvailableBalanceInCache ? isAvailableBalanceInCache : "NO BAL IN CACHE");
-
-        let availableBalance;
-
-        if (isAvailableBalanceInCache) {
-            availableBalance = Number(isAvailableBalanceInCache)
+        if (isBalanceInCache) {
+            balance = Number(isBalanceInCache)
         } else {
-            const availableBalanceQuery = await prisma.user.findUnique({ where: { userId }, select: { availableBalance: true } })
-            if (!availableBalanceQuery) {
+            const balanceQuery = await prisma.user.findUnique({ where: { userId }, select: { balance: true } })
+            if (!balanceQuery) {
                 return res.status(404).json({ success: false, message: "" });
             }
-            availableBalance = Number(availableBalanceQuery.availableBalance)
+            balance = Number(balanceQuery.balance)
         }
 
         // CHAECKING BAL SUFFICENCY
-        if (Number(availableBalance) < Number(amount)) {
+        if (Number(balance) < Number(amount)) {
             await setIdemResponse(ikey, userId, `Insufficient balance`);
             return res.status(400).json({ success: false, message: "Insufficient balance." });
         }
@@ -83,12 +62,12 @@ export async function withdraw(req: Request, res: Response) {
         // TRANSACTION
         const result = await prisma.$transaction(async (tx: any) => {
             await tx.$queryRaw`SELECT * FROM "User" WHERE "userId" = ${userId} FOR UPDATE`;
-            const updateBalanceResult = await tx.user.update({ where: { userId }, data: { availableBalance: { decrement: Number(amount) } } });
+            const updateBalanceResult = await tx.user.update({ where: { userId }, data: { balance: { decrement: Number(amount) } } });
 
             const transactionResult = await tx.transaction.create({
                 data: { userId, orderId: "-", type: TransactionType.WITHDRAW, amount }
             });
-            return { transactionId: transactionResult.transactionId, availableBalance: updateBalanceResult.availableBalance };
+            return { transactionId: transactionResult.transactionId, balance: updateBalanceResult.balance };
         }, {
             maxWait: 5000,
             timeout: 10000,
@@ -100,14 +79,9 @@ export async function withdraw(req: Request, res: Response) {
         }
         await setIdemResponse(ikey, userId, `transactionId : ${result.transactionId}`);
 
-        await redis.set(`availableBalance:${userId}`, String(result.availableBalance), "EX", 3600);
+        await redis.set(`balance:${userId}`, String(result.balance), "EX", 3600);
 
-        const totalBalance = String(Number(result.availableBalance) + Number(lockedBalance))
-        await redis.set(`totalBalance:${userId}`, totalBalance, "EX", 3600)
-
-        console.log("\n> total bal :", totalBalance);
-        console.log("\n> ava bal :", result.availableBalance);
-        console.log("\n> lock bal :", lockedBalance);
+        console.log("\n> balance :", result.balance);
 
         return res.status(200).json({ success: true, transactionId: result.transactionId, message: "Withdrawal successful." });
     } catch (error: any) {
