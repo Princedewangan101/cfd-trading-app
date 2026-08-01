@@ -16,10 +16,9 @@ const promiseToastOptions: ToastOptions = {
     duration: 4000,
     iconTheme: { primary: "#4f46e5", secondary: "#09090b" },
     style: {
-        background: "rgba(9, 9, 11, 0.95)",
+        background: "rgba(39, 39, 42, 0.95)",
         color: "#f4f4f5",
         borderRadius: "12px",
-        border: "1px solid #27272a",
         fontSize: "14px",
         boxShadow: "0 12px 32px rgba(0, 0, 0, 0.6)",
         backdropFilter: "blur(8px)",

@@ -32,27 +32,23 @@ export default function RootLayout({
           toastOptions={{
             duration: 3000,
             style: {
-              background: "rgba(9, 9, 11, 0.95)",
+              background: "rgba(39, 39, 42, 0.95)",
               color: "#f4f4f5",
               borderRadius: "12px",
-              border: "1px solid #27272a",
               fontSize: "14px",
               boxShadow: "0 12px 32px rgba(0, 0, 0, 0.6)",
               backdropFilter: "blur(8px)",
               padding: "10px 14px",
             },
             success: {
-              iconTheme: { primary: "#10b981", secondary: "#09090b" },
-              style: { borderColor: "rgba(16, 185, 129, 0.45)" },
+              iconTheme: { primary: "#22c55e", secondary: "#09090b" },
             },
             error: {
               iconTheme: { primary: "#ef4444", secondary: "#09090b" },
-              style: { borderColor: "rgba(239, 68, 68, 0.45)" },
               duration: 5000,
             },
             loading: {
               iconTheme: { primary: "#4f46e5", secondary: "#09090b" },
-              style: { borderColor: "rgba(79, 70, 229, 0.45)" },
             },
           }}
         />
