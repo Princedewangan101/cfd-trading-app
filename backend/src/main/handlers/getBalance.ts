@@ -5,8 +5,7 @@ import { prisma } from '../../config/db.js';
 export async function balance(req: Request, res: Response) {
     console.log("\n\n>> /api/balance (api call)");
 
-    // const userId = req.userId;
-    const userId = "72c62fec-64a7-4b7f-89b4-e0e0ad2c2a25";
+    const userId = req.userId;
     console.log("\n> userId :", userId);
 
     if (typeof userId !== 'string') {

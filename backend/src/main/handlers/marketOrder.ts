@@ -9,8 +9,7 @@ import { OrderStatus } from '../../generated/prisma/client.js';
 export async function marketOrder(req: Request, res: Response) {
     console.log("\n\n>> /api/market (api call)");
 
-    // const userId = req.userId;
-    const userId = "72c62fec-64a7-4b7f-89b4-e0e0ad2c2a25";
+    const userId = req.userId;
 
     const { ikey, symbol, side, quantity, leverage } = req.body;
     if (!ikey || !symbol || !side || !quantity || !leverage) {

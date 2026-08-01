@@ -9,8 +9,7 @@ import { check } from '../util/IdempotencyCheck.js';
 export async function withdraw(req: Request, res: Response) {
     console.log("\n\n>> /api/withdraw");
 
-    // const userId = req.userId;
-    const userId = "72c62fec-64a7-4b7f-89b4-e0e0ad2c2a25";
+    const userId = req.userId;
     const { ikey, amount } = req.body;
     if (!ikey || !userId || !amount) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
 

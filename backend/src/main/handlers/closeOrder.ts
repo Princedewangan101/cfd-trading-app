@@ -10,8 +10,7 @@ type engineResult = {success:boolean, id:string, closePrice:string}
 export async function closeOrder(req: Request, res: Response) {
     console.log("\n\n> /api/close (api call)");
 
-    // const userId = req.userId;
-    const userId = "72c62fec-64a7-4b7f-89b4-e0e0ad2c2a25";
+    const userId = req.userId;
     const { orderId } = req.body;
     if (!userId || !orderId) { res.status(404).json({ success: false, message: "Missing required fields !" }) }
 
