@@ -3,7 +3,28 @@
 import React from "react";
 import { position } from "@/lib/timeFrames";
 
+const SkeletonRow = () => (
+    <tr className="border-b border-zinc-900 last:border-b-0">
+        <td className="py-3 pl-1 pr-3"><div className="skeleton h-4 w-16 rounded" /></td>
+        <td className="px-3 py-3"><div className="skeleton h-4 w-8 rounded" /></td>
+        <td className="px-3 py-3 text-right"><div className="skeleton ml-auto h-4 w-12 rounded" /></td>
+        <td className="px-3 py-3 text-right"><div className="skeleton ml-auto h-4 w-14 rounded" /></td>
+        <td className="px-3 py-3 text-right"><div className="skeleton ml-auto h-4 w-14 rounded" /></td>
+        <td className="px-3 py-3 text-right"><div className="skeleton ml-auto h-4 w-10 rounded" /></td>
+        <td className="px-3 py-3 text-right"><div className="skeleton ml-auto h-4 w-10 rounded" /></td>
+        <td className="px-3 py-3 text-right"><div className="skeleton ml-auto h-4 w-12 rounded" /></td>
+        <td className="py-3 pl-3 pr-1 text-right"><div className="skeleton ml-auto h-4 w-14 rounded" /></td>
+    </tr>
+);
+
 const PositionsTable = () => {
+    const [isLoading, setIsLoading] = React.useState<boolean>(true);
+
+    React.useEffect(() => {
+        const timer = setTimeout(() => setIsLoading(false), 600);
+        return () => clearTimeout(timer);
+    }, []);
+
     const pendingCloseOrders = position.filter((p) => p.closeTime === "-" && p.status !== "CANCELLED");
 
     return (
@@ -25,31 +46,25 @@ const PositionsTable = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {pendingCloseOrders.map((p) => (
-                            <tr key={p.id} className="border-b border-zinc-900 transition-colors last:border-b-0 hover:bg-zinc-900/40">
-                                <td className="py-2 pl-1 pr-3 font-medium text-gray-200">{p.symbol}</td>
-                                <td className={`px-3 py-2 ${p.side === "BUY" ? "text-emerald-500" : "text-red-500"}`}>
-                                    {p.side}
-                                </td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-300">{p.quantity}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-300">{p.op}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-300">{p.cp === "-" ? "—" : p.cp}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-300">{p.sl}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-300">{p.tp}</td>
-                                <td className={`px-3 py-2 text-right tabular-nums ${p.pnl >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                                    {p.pnl}
-                                </td>
-                                <td className="py-2 pl-3 pr-1 text-right">
-                                    <span
-                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                                            p.status === "PENDING" ? "bg-amber-500/15 text-amber-500" : "bg-ind/15 text-ind"
-                                        }`}
-                                    >
-                                        {p.status}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
+                        {isLoading
+                            ? Array.from({ length: 6 }, (_, i) => <SkeletonRow key={i} />)
+                            : pendingCloseOrders.map((p) => (
+                                <tr key={p.id} className="border-b border-zinc-900 transition-colors last:border-b-0 hover:bg-zinc-900/40">
+                                    <td className="py-2 pl-1 pr-3 font-medium text-gray-400">{p.symbol}</td>
+                                    <td className={`px-3 py-2 ${p.side === "BUY" ? "text-emerald-500" : "text-red-500"}`}>
+                                        {p.side}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-400">{p.quantity}</td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-400">{p.op}</td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-400">{p.cp === "-" ? "—" : p.cp}</td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-400">{p.sl}</td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-400">{p.tp}</td>
+                                    <td className={`px-3 py-2 text-right tabular-nums ${p.pnl >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                                        {p.pnl}
+                                    </td>
+                                    <td className="py-2 pl-3 pr-1 text-right text-gray-400">{p.status}</td>
+                                </tr>
+                            ))}
                     </tbody>
                 </table>
             </div>

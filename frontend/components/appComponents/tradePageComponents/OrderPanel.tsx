@@ -1,6 +1,6 @@
 "use client"
 
-import { Slider } from '@/components/ui/slider';
+import LeverageSlider from '@/components/ui/LeverageSlider';
 import React from 'react'
 import axios from 'axios'
 import { BACKEND_URL } from '@/lib/url';
@@ -19,8 +19,8 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
   const notional = markPrice * Number(quantity || 0);
   const marginRequired = leverageSliderValue[1] ? notional / leverageSliderValue[1] : 0;
 
-  function handleSliderValue(selectedValue: number[]) {
-    return setLeverageSliderValue([1, selectedValue[1]])
+  function handleSliderValue(selectedValue: number) {
+    return setLeverageSliderValue([1, selectedValue])
   }
 
   function handleOrderSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
@@ -44,7 +44,7 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
     );
   }
 
-  const inputClass = "w-full rounded-lg bg-zinc-900/70 p-2.5 text-sm text-gray-200 placeholder:text-gray-600 outline-none transition-colors focus:bg-zinc-900/90 focus:ring-2 focus:ring-ind/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+  const inputClass = "w-full rounded-lg bg-zinc-900/70 p-2.5 text-sm text-gray-200 placeholder:text-gray-600 outline-none transition-colors focus:bg-zinc-900/90 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   const priceRow = (label: string, value: string) => (
     <div className="flex items-center justify-between text-sm">
@@ -119,17 +119,16 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
       <div>
         <div className="mb-2 flex items-center justify-between">
           <label className="text-sm font-medium text-slate-300">Leverage</label>
-          <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-sm font-semibold tabular-nums text-ind">
+          <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-sm font-semibold tabular-nums text-gray-100">
             {leverageSliderValue[1]}x
           </span>
         </div>
-        <Slider
-          value={leverageSliderValue}
-          onValueChange={handleSliderValue}
+        <LeverageSlider
+          value={leverageSliderValue[1]}
+          onChange={handleSliderValue}
           min={1}
           max={400}
           step={10}
-          className="[&_[data-radix-collection-item]:first-of-type]:first:hidden [&_[data-slot=slider-range]]:bg-ind [&_[data-slot=slider-thumb]]:size-4 [&_[data-slot=slider-thumb]]:border-ind [&_[data-slot=slider-thumb]]:bg-white [&_[data-slot=slider-thumb]]:hover:ring-ind/30"
         />
       </div>
 
