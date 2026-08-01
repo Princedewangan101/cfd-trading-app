@@ -19,6 +19,19 @@ const Charts = ({ symbol }: { symbol: string }) => {
   const [isChartLoaded, setIsChartLoaded] = React.useState<boolean>(false);
   const [isFetching, setIsFetching] = React.useState<boolean>(false);
   const [chartTimeFrame, setChartTimeFrame] = React.useState<string>("1m");
+  const [clock, setClock] = React.useState<string>("00:00:00");
+
+  React.useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      setClock(
+        `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
+      );
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
 
   const symbolWithoutSlash = symbol;  // BTCUSD   <- no slash
@@ -188,7 +201,8 @@ const Charts = ({ symbol }: { symbol: string }) => {
             ))
           }
         </div>
-        <div className="flex gap-1 ml-auto mr-3 h-full">
+        <div className="flex gap-1 ml-auto mr-3 h-full items-center">
+          <div className="flex items-center px-2 text-sm tabular-nums text-gray-300">{clock}</div>
           {
             chartAdjuster.map((x) =>
               <div

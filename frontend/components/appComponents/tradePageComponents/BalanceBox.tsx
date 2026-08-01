@@ -1,34 +1,52 @@
 "use client";
 
 import { useAppStore } from '@/store/store';
-import React from 'react'
+import { ChevronDown } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react'
 
 const BalanceBox = () => {
-  const userId = useAppStore((state) => state.userId)
   const totalBalance = useAppStore((state) => state.totalBalance)
   const availableBalance = useAppStore((state) => state.availableBalance)
   const lockedBalance = useAppStore((state) => state.lockedBalance)
+  const [dropdownOpen, setDropdownOpen] = useState<boolean>(false)
+  const balanceRef = useRef<HTMLDivElement>(null)
 
-  // console.log(`\n\ntotalBal : ${totalBalance}\navailableBal: ${availableBalance}\nlockedBal : ${lockedBalance}`);
-
-  React.useEffect(() => {
-    // fetchBalance()
-  }, [userId]);
-
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handleClick = (event: MouseEvent) => {
+      if (balanceRef.current && !balanceRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [dropdownOpen])
 
   return (
-    <div className='relative group flex justify-center items-center rounded-md w-fit px-2 gap-2  hover:cursor-default'>
-      <p>{totalBalance}</p>
-      <div className='z-40 group-hover:block hidden text-sm absolute top-10 w-50 px-2 py-1 rounded-md bg-zinc-900 boxShadow'>
-        <div className='flex'>
-          <p className='w-25  text-start'>available bal:</p>
-          <p className='w-25  text-end'>{availableBalance}</p>
+    <div ref={balanceRef} className='relative'>
+      <button
+        type="button"
+        onClick={() => setDropdownOpen((prev) => !prev)}
+        className='flex items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-zinc-800/60'
+      >
+        <span className='text-sm font-medium tabular-nums text-gray-200'>
+          ${totalBalance.toLocaleString("en-US")}
+        </span>
+        <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {dropdownOpen && (
+        <div className='absolute right-0 top-full z-40 mt-1 w-44 rounded-lg border border-zinc-800 bg-zinc-900/95 px-3 py-2 text-sm shadow-2xl backdrop-blur-md'>
+          <div className='flex items-center justify-between py-0.5'>
+            <p className='text-gray-500'>Available</p>
+            <p className='tabular-nums text-gray-200'>${availableBalance.toLocaleString("en-US")}</p>
+          </div>
+          <div className='flex items-center justify-between py-0.5'>
+            <p className='text-gray-500'>Locked</p>
+            <p className='tabular-nums text-gray-200'>${lockedBalance.toLocaleString("en-US")}</p>
+          </div>
         </div>
-        <div className='flex'>
-          <p className='w-25  text-start'>locked bal:</p>
-          <p className='w-25  text-end'>{lockedBalance}</p>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

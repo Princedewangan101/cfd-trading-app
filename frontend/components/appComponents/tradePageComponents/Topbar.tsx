@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Star } from 'lucide-react'
 import solanalogo from "../../../asset/solanalogo.png";
 import BalanceBox from './BalanceBox';
 
@@ -14,6 +14,8 @@ interface Ticker {
     c: string;
     h: string;
     l: string;
+    v: string;
+    V: string;
 }
 
 const getSymbolMeta = (symbol: string) => {
@@ -37,12 +39,34 @@ const formatPrice = (value?: string) => {
     });
 };
 
+const formatVolume = (value?: string) => {
+    const number = Number(value);
+    if (!value || Number.isNaN(number)) return "—";
+    return "$" + new Intl.NumberFormat("en-US", {
+        notation: "compact",
+        maximumFractionDigits: 1,
+    }).format(number);
+};
+
 const Topbar = ({ symbol }: { symbol: string }) => {
     const router = useRouter();
     const { base, wsSymbol, image, gradient } = getSymbolMeta(symbol);
-    const [ticker, setTicker] = useState<Ticker | null>(null);
+    const [tickers, setTickers] = useState<Record<string, Ticker>>({});
+    const [favorites, setFavorites] = useState<string[]>(() => {
+        if (typeof window === "undefined") return [];
+        try {
+            return JSON.parse(window.localStorage.getItem("favoriteSymbols") || "[]");
+        } catch {
+            return [];
+        }
+    });
+    const [filter, setFilter] = useState<"symbols" | "favorites">("symbols");
     const symbolRef = useRef<HTMLDivElement>(null);
     const [symbolDropdownOpen, setSymbolDropdownOpen] = useState<boolean>(false);
+
+    useEffect(() => {
+        window.localStorage.setItem("favoriteSymbols", JSON.stringify(favorites));
+    }, [favorites]);
 
     useEffect(() => {
         if (!symbolDropdownOpen) return
@@ -76,7 +100,7 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                 socket?.send(
                     JSON.stringify({
                         method: "SUBSCRIBE",
-                        params: [`ticker.${wsSymbol}`],
+                        params: SYMBOLS.map((sym) => `ticker.${sym}_USDC`),
                         id: 1,
                     })
                 );
@@ -86,7 +110,7 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                 try {
                     const parsed = JSON.parse(event.data);
                     const data = parsed.data as Ticker;
-                    if (data?.s === wsSymbol) setTicker(data);
+                    if (data?.s) setTickers((prev) => ({ ...prev, [data.s]: data }));
                 } catch (error) {
                     console.log("\n> [ERROR] (Topbar.tsx) :", (error as Error).message);
                 }
@@ -105,19 +129,31 @@ const Topbar = ({ symbol }: { symbol: string }) => {
             if (reconnectTimer) clearTimeout(reconnectTimer);
             socket?.close();
         };
-    }, [wsSymbol]);
+    }, []);
+
+    const ticker = tickers[wsSymbol] ?? null;
 
     const percent = ticker
         ? ((Number(ticker.c) - Number(ticker.o)) / Number(ticker.o)) * 100
         : null;
     const percentColor = percent === null
         ? "text-gray-600"
-        : percent >= 0 ? "bg-emerald-500/15 text-emerald-500" : "bg-red-500/15 text-red-500";
+        : percent >= 0 ? "text-emerald-500" : "text-red-500";
+
+    function toggleFavorite(sym: string) {
+        setFavorites((prev) =>
+            prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym]
+        );
+    }
+
+    const filteredSymbols = filter === "favorites"
+        ? SYMBOLS.filter((sym) => favorites.includes(sym))
+        : SYMBOLS;
 
     return (
         <div className='flex h-10 items-center justify-between gap-3 rounded bg-zinc-950 px-2 py-1'>
             {/* SYMBOL + LIVE PRICE */}
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-3'>
                 <div ref={symbolRef} className='relative'>
                     <button
                         type="button"
@@ -139,44 +175,89 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                     </button>
 
                     {symbolDropdownOpen && (
-                        <div className='absolute left-0 top-full z-40 mt-1 w-36 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/95 shadow-2xl backdrop-blur-md'>
-                            {SYMBOLS.map((sym) => {
-                                const active = sym === base
-                                return (
-                                    <button
-                                        key={sym}
-                                        type="button"
-                                        onClick={() => { setSymbolDropdownOpen(false); router.push(`/trade/${sym}USD`) }}
-                                        className={`flex w-full items-center justify-between px-3 py-2 text-sm ${active ? "bg-zinc-800 text-gray-100" : "text-gray-300 hover:bg-zinc-800/60 hover:text-gray-100"}`}
-                                    >
-                                        {sym}
-                                        {active && <span className='h-1.5 w-1.5 rounded-full bg-ind' />}
-                                    </button>
-                                )
-                            })}
+                        <div className='absolute left-0 top-full z-40 mt-1 w-80 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/95 shadow-2xl backdrop-blur-md'>
+                            {/* FILTER TABS */}
+                            <div className='flex gap-1 border-b border-zinc-800 p-1.5'>
+                                <button
+                                    type="button"
+                                    onClick={() => setFilter("favorites")}
+                                    className={`flex-1 rounded-md px-2 py-1 text-xs font-medium ${filter === "favorites" ? "bg-zinc-800 text-gray-100" : "text-gray-400 hover:text-gray-200"}`}
+                                >
+                                    Favorites
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFilter("symbols")}
+                                    className={`flex-1 rounded-md px-2 py-1 text-xs font-medium ${filter === "symbols" ? "bg-zinc-800 text-gray-100" : "text-gray-400 hover:text-gray-200"}`}
+                                >
+                                    Symbols
+                                </button>
+                            </div>
+
+                            {/* ROWS */}
+                            <div className='max-h-64 overflow-y-auto'>
+                                {filteredSymbols.length === 0 && (
+                                    <p className='px-3 py-6 text-center text-xs text-gray-500'>No favorites yet</p>
+                                )}
+                                {filteredSymbols.map((sym) => {
+                                    const data = tickers[`${sym}_USDC`];
+                                    const symPercent = data
+                                        ? ((Number(data.c) - Number(data.o)) / Number(data.o)) * 100
+                                        : null;
+                                    const isFav = favorites.includes(sym);
+                                    return (
+                                        <div key={sym} className='flex items-center justify-between gap-3 px-3 py-2 transition-colors hover:bg-zinc-800/60'>
+                                            <div className='flex items-center gap-2'>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleFavorite(sym)}
+                                                    className={`p-0.5 ${isFav ? "text-amber-400" : "text-gray-500 hover:text-gray-300"}`}
+                                                    aria-label={`${isFav ? "Remove" : "Add"} ${sym} to favorites`}
+                                                >
+                                                    <Star className={`h-3.5 w-3.5 ${isFav ? "fill-amber-400" : ""}`} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setSymbolDropdownOpen(false); router.push(`/trade/${sym}USD`) }}
+                                                    className='text-sm font-medium text-gray-100 hover:text-gray-50'
+                                                >
+                                                    {sym}
+                                                </button>
+                                            </div>
+                                            <div className='flex items-center gap-3'>
+                                                <span className='text-sm tabular-nums text-gray-200'>{data ? `$${formatPrice(data.c)}` : "—"}</span>
+                                                <span className={`w-11 text-right text-[10px] tabular-nums ${symPercent === null ? "text-gray-500" : symPercent >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                                                    {symPercent === null ? "—" : `${symPercent >= 0 ? "+" : ""}${symPercent.toFixed(2)}%`}
+                                                </span>
+                                                <span className='w-12 text-right text-xs tabular-nums text-gray-500'>{formatVolume(data?.V)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>
 
-                <div className='ml-3 flex items-center gap-2'>
+                <div className='ml-4 flex items-center gap-2'>
                     {!ticker ? (
-                        <div className='skeleton h-5 w-20 rounded' />
+                        <div className='skeleton h-6 w-24 rounded' />
                     ) : (
-                        <p className='text-sm font-medium tabular-nums text-gray-100'>
-                            {formatPrice(ticker.c)}
+                        <p className='text-lg font-medium tabular-nums text-gray-100'>
+                            {`$${formatPrice(ticker.c)}`}
                         </p>
                     )}
                     {!ticker ? (
-                        <div className='skeleton h-5 w-14 rounded-full' />
+                        <div className='skeleton h-4 w-12 rounded' />
                     ) : (
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${percentColor}`}>
+                        <span className={`text-[11px] font-medium tabular-nums ${percentColor}`}>
                             {percent! >= 0 ? "+" : ""}{percent!.toFixed(2)}%
                         </span>
                     )}
                 </div>
 
                 {/* 24H STATS */}
-                <div className='hidden items-center gap-4 md:flex'>
+                <div className='ml-4 hidden items-center gap-5 md:flex'>
                     <div className='leading-tight'>
                         <p className='text-[10px] uppercase tracking-wider text-gray-500'>24h High</p>
                         {!ticker ? (

@@ -128,7 +128,7 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
           onChange={handleSliderValue}
           min={1}
           max={400}
-          step={10}
+          marks={[1, 50, 100, 150, 200, 250, 300, 350, 400]}
         />
       </div>
 
