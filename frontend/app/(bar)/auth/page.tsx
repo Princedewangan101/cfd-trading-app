@@ -3,21 +3,18 @@ import { authethicate } from '@/app/utils/authenthicate';
 import { handleError } from '@/app/utils/errorHandler';
 import { toastError } from '@/lib/toast';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import React from 'react'
+import { Suspense } from 'react'
 
 const AuthPage = () => {
     const router = useRouter();
-    const [authPage, setAuthPage] = React.useState<"signin" | "signup">(() => {
-        if (typeof window !== "undefined") {
-            const mode = new URLSearchParams(window.location.search).get("mode");
-            return mode === "signin" ? "signin" : "signup";
-        }
-        return "signup";
-    });
+    const searchParams = useSearchParams();
+    const authPage: "signin" | "signup" = searchParams.get("mode") === "signin" ? "signin" : "signup";
 
     function changeAuthPage() {
-        return authPage === "signup" ? setAuthPage("signin") : setAuthPage("signup")
+        const nextMode = authPage === "signup" ? "signin" : "signup";
+        router.push(`/auth?mode=${nextMode}`);
     }
 
     async function handleAuthenthication(e: React.SyntheticEvent<HTMLFormElement>) {
@@ -84,4 +81,10 @@ const AuthPage = () => {
     )
 }
 
-export default AuthPage
+export default function AuthPageWrapper() {
+    return (
+        <Suspense>
+            <AuthPage />
+        </Suspense>
+    )
+}
