@@ -5,6 +5,7 @@ const actionMessages = {
     market: { loading: "Placing market order…", success: "Market order executed" },
     limit: { loading: "Placing limit order…", success: "Limit order placed" },
     close: { loading: "Closing position…", success: "Position closed" },
+    closeAll: { loading: "Closing all positions…", success: "All positions closed" },
     cancel: { loading: "Cancelling order…", success: "Order cancelled" },
     deposit: { loading: "Processing deposit…", success: "Deposit successful" },
     withdraw: { loading: "Processing withdrawal…", success: "Withdrawal successful" },

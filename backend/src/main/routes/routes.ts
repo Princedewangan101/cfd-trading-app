@@ -6,6 +6,7 @@ import { withdraw } from '../handlers/withdraw.js';
 import { deposit } from '../handlers/deposit.js';
 import { modify } from '../handlers/modify.js';
 import { closeOrder } from '../handlers/closeOrder.js';
+import { closeAllOrders } from '../handlers/closeAllOrders.js';
 import { limitOrder } from '../handlers/limitOrder.js';
 import { marketOrder } from '../handlers/marketOrder.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
@@ -20,6 +21,7 @@ router.get('/candles/:symbol/:timeFrame', candles)
 router.post('/market', authMiddleware, marketOrder)
 router.post('/limit', authMiddleware, limitOrder)
 router.post('/close', authMiddleware, closeOrder)
+router.post('/close-all', authMiddleware, closeAllOrders)
 router.post('/modify', authMiddleware, modify)
 
 

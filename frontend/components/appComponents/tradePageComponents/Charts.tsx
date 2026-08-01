@@ -8,6 +8,7 @@ import { createChart, ColorType, CandlestickSeries, type UTCTimestamp } from "li
 import { chartAdjuster, timeFrame } from "@/lib/timeFrames";
 import DotLoader from "./DotLoader";
 import DrawerHeader from "./DrawerHeader";
+import { ChevronRight } from "lucide-react";
 import { barColour } from "@/lib/barColor";
 import { dummyData } from "@/lib/candleDummyData";
 
@@ -20,6 +21,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
   const [isFetching, setIsFetching] = React.useState<boolean>(false);
   const [chartTimeFrame, setChartTimeFrame] = React.useState<string>("1m");
   const [clock, setClock] = React.useState<string>("00:00:00");
+  const [isTimeFrameExpanded, setIsTimeFrameExpanded] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     const updateClock = () => {
@@ -191,15 +193,25 @@ const Charts = ({ symbol }: { symbol: string }) => {
       <div className="w-full flex bg-zinc-s rounded py-1">
         <div className="h-full flex gap-1 ml-3">
           {
-            timeFrame.map(({ time }) => (
-              <div
-                onClick={() => { setChartTimeFrame(time) }}
-                key={time}
-                className={`${chartTimeFrame === time && "bg-zinc-800"} flex items-center justify-center text-sm p-1 w-8 h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer`}>
-                {time}
-              </div>
-            ))
+            timeFrame.map(({ time }) => {
+              const isHidden = !isTimeFrameExpanded && ["4h", "1d", "1w", "1M"].includes(time);
+              if (isHidden) return null;
+              return (
+                <div
+                  onClick={() => { setChartTimeFrame(time) }}
+                  key={time}
+                  className={`${chartTimeFrame === time && "bg-zinc-800"} flex items-center justify-center text-sm p-1 w-8 h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer`}>
+                  {time}
+                </div>
+              )
+            })
           }
+          <button
+            type="button"
+            onClick={() => setIsTimeFrameExpanded((prev) => !prev)}
+            className={`flex h-full items-center justify-center p-1 text-sm rounded-sm hover:bg-zinc-800 hover:cursor-pointer transition-transform ${isTimeFrameExpanded ? "rotate-90" : ""}`}>
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
         <div className="flex gap-1 ml-auto mr-3 h-full items-center">
           <div className="flex items-center rounded bg-zinc-800 px-2 py-0.5 text-sm tabular-nums text-gray-400">{clock}</div>
