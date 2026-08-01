@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronDown, Star } from 'lucide-react'
 import solanalogo from "../../../asset/solanalogo.png";
 import BalanceBox from './BalanceBox';
+import RampBox from './RampBox';
 
 const SYMBOLS = ["BTC", "ETH", "SOL"];
 
@@ -63,6 +64,8 @@ const Topbar = ({ symbol }: { symbol: string }) => {
     const [filter, setFilter] = useState<"symbols" | "favorites">("symbols");
     const symbolRef = useRef<HTMLDivElement>(null);
     const [symbolDropdownOpen, setSymbolDropdownOpen] = useState<boolean>(false);
+    const rampRef = useRef<HTMLDivElement>(null);
+    const [rampOpen, setRampOpen] = useState<boolean>(false);
 
     useEffect(() => {
         window.localStorage.setItem("favoriteSymbols", JSON.stringify(favorites));
@@ -85,6 +88,24 @@ const Topbar = ({ symbol }: { symbol: string }) => {
             document.removeEventListener("keydown", handleKey)
         }
     }, [symbolDropdownOpen])
+
+    useEffect(() => {
+        if (!rampOpen) return
+        const handleClick = (event: MouseEvent) => {
+            if (rampRef.current && !rampRef.current.contains(event.target as Node)) {
+                setRampOpen(false)
+            }
+        }
+        const handleKey = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setRampOpen(false)
+        }
+        document.addEventListener("mousedown", handleClick)
+        document.addEventListener("keydown", handleKey)
+        return () => {
+            document.removeEventListener("mousedown", handleClick)
+            document.removeEventListener("keydown", handleKey)
+        }
+    }, [rampOpen])
 
     useEffect(() => {
         if (!process.env.NEXT_PUBLIC_BACKPACK_URL) return;
@@ -194,6 +215,16 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                                 </button>
                             </div>
 
+                            {/* COLUMN HEADER */}
+                            <div className='flex items-center justify-between gap-3 border-b border-zinc-800 px-3 py-1.5 text-[10px] uppercase tracking-wider text-gray-500'>
+                                <span>Symbol</span>
+                                <div className='flex items-center gap-3'>
+                                    <span className='text-right'>Price</span>
+                                    <span className='w-11 text-right'>24h%</span>
+                                    <span className='w-12 text-right'>Volume</span>
+                                </div>
+                            </div>
+
                             {/* ROWS */}
                             <div className='max-h-64 overflow-y-auto'>
                                 {filteredSymbols.length === 0 && (
@@ -279,6 +310,25 @@ const Topbar = ({ symbol }: { symbol: string }) => {
 
             {/* EQUITY */}
             <div className='flex items-center gap-2'>
+                <div ref={rampRef} className='relative'>
+                    <div className='flex items-center gap-1'>
+                        <button
+                            type="button"
+                            onClick={() => setRampOpen((prev) => !prev)}
+                            className='rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
+                        >
+                            Deposit
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setRampOpen((prev) => !prev)}
+                            className='rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
+                        >
+                            Withdraw
+                        </button>
+                    </div>
+                    {rampOpen && <RampBox />}
+                </div>
                 <BalanceBox />
             </div>
         </div>
