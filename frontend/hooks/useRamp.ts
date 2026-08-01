@@ -2,8 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { handleError } from "@/app/utils/errorHandler";
-import { toastError, toastSuccess } from "@/lib/toast";
+import { showActionPromise } from "@/lib/toast";
 import { config } from "@/lib/config";
 
 interface RampResponse {
@@ -34,13 +33,9 @@ export function useRamp() {
 
     return useMutation({
         mutationFn: ({ mode, amount }: { mode: "deposit" | "withdraw"; amount: number }) =>
-            rampRequest(mode, amount),
-        onSuccess: (data) => {
+            showActionPromise(mode, () => rampRequest(mode, amount)),
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["balance"] });
-            toastSuccess(data.message);
-        },
-        onError: (error) => {
-            toastError(handleError(error));
         },
     });
 }

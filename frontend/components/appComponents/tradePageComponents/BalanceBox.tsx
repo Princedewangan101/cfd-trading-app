@@ -48,7 +48,7 @@ const BalanceBox = () => {
             <p className='tabular-nums text-gray-200'>${availableBalance.toLocaleString("en-US")}</p>
           </div>
           <div className='flex items-center justify-between py-0.5'>
-            <p className='text-gray-500'>Locked</p>
+            <p className='text-gray-500'>Equity</p>
             <p className='tabular-nums text-gray-200'>${lockedBalance.toLocaleString("en-US")}</p>
           </div>
         </div>

@@ -46,9 +46,21 @@ const RampBox = () => {
                 <button
                     type="submit"
                     disabled={ramp.isPending}
-                    className={`w-full rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition-colors disabled:opacity-50 ${mode === "deposit" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500 hover:bg-red-600"}`}
+                    className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition-colors disabled:opacity-80 ${mode === "deposit" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500 hover:bg-red-600"}`}
                 >
-                    {mode === "deposit" ? "Deposit" : "Withdraw"}
+                    {ramp.isPending ? (
+                        <span className="flex items-center gap-1">
+                            {[0, 1, 2].map((i) => (
+                                <span
+                                    key={i}
+                                    className="h-1.5 w-1.5 rounded-full bg-white animate-dotBounceY"
+                                    style={{ animationDelay: `${i * 0.15}s` }}
+                                />
+                            ))}
+                        </span>
+                    ) : (
+                        mode === "deposit" ? "Deposit" : "Withdraw"
+                    )}
                 </button>
             </form>
         </div>
