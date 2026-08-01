@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./css/globals.css";
-import { Slide, ToastContainer } from "react-toastify";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
   subsets: ["latin"]
@@ -22,23 +22,38 @@ export default function RootLayout({
       lang="en"
       className={`${inter.className} dark h-full antialiased`}
     >
-      <head>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0&icon_names=arrow_drop_down" />
-      </head>
       <body className="min-h-full flex flex-col">
         {children}
-        <ToastContainer
+        <Toaster
           position="bottom-left"
-          autoClose={3000}
-          hideProgressBar
-          newestOnTop
-          closeOnClick={false}
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
-          transition={Slide}
+          reverseOrder={false}
+          gutter={10}
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: "rgba(9, 9, 11, 0.95)",
+              color: "#f4f4f5",
+              borderRadius: "12px",
+              border: "1px solid #27272a",
+              fontSize: "14px",
+              boxShadow: "0 12px 32px rgba(0, 0, 0, 0.6)",
+              backdropFilter: "blur(8px)",
+              padding: "10px 14px",
+            },
+            success: {
+              iconTheme: { primary: "#10b981", secondary: "#09090b" },
+              style: { borderColor: "rgba(16, 185, 129, 0.45)" },
+            },
+            error: {
+              iconTheme: { primary: "#ef4444", secondary: "#09090b" },
+              style: { borderColor: "rgba(239, 68, 68, 0.45)" },
+              duration: 5000,
+            },
+            loading: {
+              iconTheme: { primary: "#4f46e5", secondary: "#09090b" },
+              style: { borderColor: "rgba(79, 70, 229, 0.45)" },
+            },
+          }}
         />
       </body>
     </html>

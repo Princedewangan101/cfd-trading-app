@@ -16,7 +16,7 @@ interface AppStoreStateType {
 
 export const useAppStore = create<AppStoreStateType>()(
     persist(
-        (set, get) => ({
+        (set) => ({
             timeFrame: "",
             userId: "",
             userName: "",

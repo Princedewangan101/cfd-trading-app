@@ -1,47 +1,33 @@
 "use client";
 import axios from 'axios';
 import React from 'react'
-import { authethicate } from '@/app/utils/authenthicate';
-import { handleError } from '@/app/utils/errorHandler';
-import { toastConfig } from '@/lib/toastConfig';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { toast } from 'react-toastify';
 import { config } from '@/lib/config';
+import { showActionPromise, toastError } from '@/lib/toast';
 
-const page = () => {
+const RampPage = () => {
 
-  const router = useRouter();
   const [isDeposit, setIsDeposit] = React.useState<boolean>(true);
 
 
-  async function handleRamp(e: React.SyntheticEvent<HTMLFormElement>) {
-    try {
-      e.preventDefault()
-      const formData = new FormData(e.currentTarget)
+  function handleRamp(e: React.SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
 
-      const payload = Object.fromEntries(formData.entries());
+    const payload = Object.fromEntries(formData.entries());
 
-      if (Number(payload.amount) < 0) {
-        return toast.error("Amount can't be negative !", toastConfig);
-      }
-
-      if (Number(payload.amount) === 0) {
-        return toast.error("Amount must be greater than 0 !", toastConfig);
-      }
-
-      const serverResponse = await axios.post(`http://localhost:5000/api/${isDeposit ? "deposit" : "withdraw"}`, { ...payload, ikey: crypto.randomUUID() }, config)
-
-      console.log(`> serverResponse (/api/${isDeposit ? "deposit" : "withdraw"}) :`, serverResponse);
-
-      if (serverResponse.data.success) {
-        return toast.error("Deposit Successfull", toastConfig);
-      }
-
-    } catch (error: any) {
-      const errorMessage = handleError(error)
-      toast.error(errorMessage, toastConfig);
+    if (Number(payload.amount) < 0) {
+      return toastError("Amount can't be negative !");
     }
+
+    if (Number(payload.amount) === 0) {
+      return toastError("Amount must be greater than 0 !");
+    }
+
+    const action = isDeposit ? "deposit" : "withdraw";
+
+    showActionPromise(action, () =>
+      axios.post(`http://localhost:5000/api/${action}`, { ...payload, ikey: crypto.randomUUID() }, config)
+    );
   }
 
 
@@ -75,4 +61,4 @@ const page = () => {
   )
 }
 
-export default page
+export default RampPage

@@ -6,9 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const delay = async (ms: number) => {
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     setTimeout(() => {
-      resolve
+      resolve()
     }, ms)
   })
 }

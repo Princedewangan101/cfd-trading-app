@@ -1,12 +1,7 @@
 "use client";
 
-import { handleError } from '@/app/utils/errorHandler';
-import { config } from '@/lib/config';
-import { toastConfig } from '@/lib/toastConfig';
 import { useAppStore } from '@/store/store';
-import axios from 'axios';
 import React from 'react'
-import { toast } from 'react-toastify';
 
 const BalanceBox = () => {
   const userId = useAppStore((state) => state.userId)
@@ -15,25 +10,6 @@ const BalanceBox = () => {
   const lockedBalance = useAppStore((state) => state.lockedBalance)
 
   // console.log(`\n\ntotalBal : ${totalBalance}\navailableBal: ${availableBalance}\nlockedBal : ${lockedBalance}`);
-
-
-  async function fetchBalance() {
-    try {
-
-      const serverResponse = await axios.get(`http://localhost:5000/api/balance`, config)
-      console.log("\n\nserverResponse.data (/api/balance) : ", serverResponse.data);
-
-      useAppStore.setState({
-        totalBalance: serverResponse.data.totalBalance,
-        availableBalance: serverResponse.data.availableBalance,
-        lockedBalance: serverResponse.data.lockedBalance,
-      })
-
-    } catch (error: any) {
-      const errorMessage = handleError(error);
-      toast(errorMessage, toastConfig)
-    }
-  }
 
   React.useEffect(() => {
     // fetchBalance()

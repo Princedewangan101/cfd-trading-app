@@ -1,8 +1,6 @@
 import { config } from "@/lib/config";
-import { toastConfig } from "@/lib/toastConfig";
 import { useAppStore } from "@/store/store";
 import axios from "axios";
-import { toast } from "react-toastify";
 
 interface ServerResponseSuccess {
     data: {
@@ -49,7 +47,7 @@ export async function authethicate(formData: FormData, authPage: string) {
 
         return { success: serverResponse.data.success, userId: serverResponse.data.data.userId, userName: serverResponse.data.data.userName }
 
-    } catch (error: any) {
-        return { success: false, message: `${error.message}` }
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : "Unknown error" }
     }
 }

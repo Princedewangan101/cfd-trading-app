@@ -1,6 +1,4 @@
-import { Time } from "lightweight-charts";
-
-export async function fetchOlderData(symbol: string | null, firstCandle: Time) {
+export async function fetchOlderData(symbol: string | null) {
     const validSymbols = ['Sol/Usd', 'Btc/Usd', 'Eth/Usd'];
 
     if (!symbol || !validSymbols.includes(symbol)) {

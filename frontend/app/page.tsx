@@ -1,8 +1,5 @@
-import HomePage from "@/components/appComponents/homePageComponents/HomePage";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-
-  return (
-   <HomePage/>
-  );
+    redirect("/market");
 }

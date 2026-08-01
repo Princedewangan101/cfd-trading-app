@@ -144,6 +144,58 @@
   animation: dotPulse 1.4s infinite ease-in-out both;
 }
 
+@keyframes priceFlashUp {
+  0% { color: #34d399; }
+  100% { color: #f3f4f6; }
+}
+
+@keyframes priceFlashDown {
+  0% { color: #f87171; }
+  100% { color: #f3f4f6; }
+}
+
+.animate-flash-up {
+  animation: priceFlashUp 0.6s ease-out;
+}
+
+.animate-flash-down {
+  animation: priceFlashDown 0.6s ease-out;
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
 @theme {
   --color-border: #18181b;       /* border-zinc-900 */
   --color-zinc-f: #09090b;       /* border-zinc-950 */

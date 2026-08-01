@@ -1,15 +1,10 @@
 "use client";
 import { authethicate } from '@/app/utils/authenthicate';
 import { handleError } from '@/app/utils/errorHandler';
-import { config } from '@/lib/config';
-import { toastConfig } from '@/lib/toastConfig';
-import { BACKEND_URL } from '@/lib/url';
-import { useAppStore } from '@/store/store';
-import axios from 'axios';
+import { toastError } from '@/lib/toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React from 'react'
-import { Slide, ToastContainer, toast } from 'react-toastify';
 
 const AuthPage = () => {
     const router = useRouter();
@@ -29,15 +24,15 @@ const AuthPage = () => {
             console.log("serverResponse :", serverResponse);
 
             if (!serverResponse.success) {
-                toast.error(`${serverResponse.message}`, toastConfig);
+                toastError(`${serverResponse.message}`);
             }
             if (serverResponse.success) {
                 router.push("/")
             }
 
-        } catch (error: any) {
+        } catch (error) {
             const errorMessage = handleError(error)
-            toast.error(errorMessage, toastConfig);
+            toastError(errorMessage);
         }
     }
 

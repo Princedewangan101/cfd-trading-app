@@ -1,5 +1,5 @@
 "use client";
-import { drawerPostionHeader, position, positionHeader } from '@/lib/timeFrames';
+import { position, positionHeader } from '@/lib/timeFrames';
 import React from 'react'
 
 const Drawer = () => {
@@ -10,14 +10,8 @@ const Drawer = () => {
       return "-"
     }
 
-    let fTime;
-    let fDate;
-
     const date = timeAsParam.split("T")[0].split("-")
     const time = timeAsParam.split("T")[1].split(":")
-
-    fDate = `${date[2]}/${date[1]}/${String(date[0]).slice(-2)}`
-    fTime = `${time[0]}:${time[1]}`
 
     return `${date[2]},${date[1]},${String(date[0]).slice(-2)},${time[0]},${time[1]}`
   }

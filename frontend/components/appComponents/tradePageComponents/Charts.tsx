@@ -2,17 +2,13 @@
 
 import React from "react";
 import { useEffect, useRef } from "react";
-import { useAppStore } from "@/store/store";
 import { loadInitialData } from "@/app/utils/loadInitialData";
-import { fetchOlderData } from "@/app/utils/fetchOlderData";
 import { debounce } from "@/app/utils/deBounce";
-import { createChart, ColorType, CandlestickSeries } from "lightweight-charts";
-import { updateCandle } from "@/app/utils/candleUpdate";
+import { createChart, ColorType, CandlestickSeries, type UTCTimestamp } from "lightweight-charts";
 import { chartAdjuster, timeFrame } from "@/lib/timeFrames";
 import DotLoader from "./DotLoader";
 import DrawerHeader from "./DrawerHeader";
 import { barColour } from "@/lib/barColor";
-import Drawer from "./Drawer";
 import { dummyData } from "@/lib/candleDummyData";
 
 
@@ -31,7 +27,10 @@ const Charts = ({ symbol }: { symbol: string }) => {
   function chart() {
     if (!chartContainerRef.current) return;
 
+    let disposed = false;
+
     const chart = createChart(chartContainerRef.current, {
+      autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "#09090b" },
         textColor: "gray",
@@ -40,8 +39,6 @@ const Charts = ({ symbol }: { symbol: string }) => {
         timeVisible: true,
         secondsVisible: false,
       },
-      width: chartContainerRef.current.clientWidth,
-      height: 430,
     })
 
     chart.applyOptions({
@@ -63,11 +60,13 @@ const Charts = ({ symbol }: { symbol: string }) => {
     initCandleData()
 
     async function initCandleData() {
-      const candleData = await loadInitialData(symbolWithUnderScore, chartTimeFrame);
+      const result = await loadInitialData(symbolWithUnderScore, chartTimeFrame);
+      if (disposed) return;
+      const candleData = Array.isArray(result) && result.length > 0 ? result : dummyData;
       // console.log(">>", candleData);
       const formattedData = candleData.map((candle) => {
         return {
-          time: Number(candle.time),
+          time: Number(candle.time) as UTCTimestamp,
           open: Number(candle.open),
           high: Number(candle.high),
           low: Number(candle.low),
@@ -84,7 +83,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
 
     const socket = updateCandle(symbolWithUnderScore)
 
-    async function updateCandle(symbol) {
+    function updateCandle(symbol: string) {
       if (!process.env.NEXT_PUBLIC_BACKPACK_URL) { throw new Error("NEXT_PUBLIC_BACKPACK_URL not found !!!"); }
       const ws: WebSocket = new WebSocket(process.env.NEXT_PUBLIC_BACKPACK_URL)
 
@@ -98,15 +97,16 @@ const Charts = ({ symbol }: { symbol: string }) => {
         );
       };
 
-      ws.onmessage = async (e: any) => {
+      ws.onmessage = (e: MessageEvent) => {
+        if (disposed) return;
         const parsedData = JSON.parse(e.data);
         const { o, h, l, c, t } = parsedData.data;
-        const time = Number(Math.floor(new Date(t).getTime() / 1000))
+        const time = Math.floor(new Date(t).getTime() / 1000) as UTCTimestamp
         console.log("> t (ws) :", time);
 
         if (isChartReady.current) {
           candlestickSeries.update({
-            time: time as any,
+            time,
             open: Number(o),
             high: Number(h),
             low: Number(l),
@@ -127,7 +127,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
       const visibleRange = chart.timeScale().getVisibleRange();
       if (!visibleRange) return;  // Visible Range Output: { from: 1714521600, to: 1714953600 }
 
-      if (visibleRange.from < (candlestickSeries.data()[0]?.time as any) && !isFetching) {
+      if (Number(visibleRange.from) < Number(candlestickSeries.data()[0]?.time) && !isFetching) {
         setIsFetching(true);
 
         // TODO: HAVE TO FETCH DATA FROM DB
@@ -141,31 +141,26 @@ const Charts = ({ symbol }: { symbol: string }) => {
       }
     }
 
-    // RESIZING
-    const handleResize = () => {
-      chart.applyOptions({ width: chartContainerRef.current?.clientWidth })
-    };
-    window.addEventListener("resize", handleResize);
-
     return () => {
-      window.removeEventListener("resize", handleResize);
+      disposed = true;
       chart.remove();
-      // socket.then((ws) => { ws.close() })
+      socket.close()
     }
   }
 
   useEffect(() => {
     setIsChartLoaded(false)
-    chart()
+    const cleanup = chart()
     setIsChartLoaded(true)
+    return cleanup
   }, [symbolWithoutSlash]);
 
 
 
   return (
-    <div className="relative flex flex-col w-full h-full bg-zinc-950 px-2 pt-2 rounded">
+    <div className="relative flex w-full flex-col bg-zinc-950 px-2 pt-2 rounded">
       {/* CHART */}
-      <div ref={chartContainerRef} className="z-0" />
+      <div ref={chartContainerRef} className="relative z-0 h-[55vh] min-h-[420px]" />
 
       {!isChartLoaded && (<DotLoader />)}
 

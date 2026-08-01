@@ -1,5 +1,19 @@
-export const dummyData = [
-    { time: 1717243740, open: 150.00, high: 155.00, low: 148.00, close: 152.50 }, // 2024-06-01 12:09:00 UTC
-    { time: 1717243800, open: 152.50, high: 160.00, low: 151.00, close: 158.20 }, // 2024-06-01 12:10:00 UTC
-    { time: 1717243860, open: 158.20, high: 165.00, low: 157.00, close: 162.10 }  // 2024-06-01 12:11:00 UTC
-];
+import type { UTCTimestamp } from "lightweight-charts";
+
+const MINUTE = 60;
+const CANDLE_COUNT = 80;
+
+export const dummyData = Array.from({ length: CANDLE_COUNT }, (_, i) => {
+    const time = (Math.floor(Date.now() / 1000) - (CANDLE_COUNT - i) * MINUTE) as UTCTimestamp;
+    const open = 150 + Math.sin(i / 6) * 6 + (i % 9) - 4;
+    const close = 150 + Math.sin((i + 1) / 6) * 6 + ((i + 1) % 9) - 4;
+    const high = Math.max(open, close) + 1 + (i % 3);
+    const low = Math.min(open, close) - 1 - (i % 3);
+    return {
+        time,
+        open: Number(open.toFixed(2)),
+        high: Number(high.toFixed(2)),
+        low: Number(low.toFixed(2)),
+        close: Number(close.toFixed(2)),
+    };
+});
