@@ -1,7 +1,5 @@
 "use client";
-import { authethicate } from '@/app/utils/authenthicate';
-import { handleError } from '@/app/utils/errorHandler';
-import { toastError } from '@/lib/toast';
+import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React from 'react'
@@ -10,6 +8,7 @@ import { Suspense } from 'react'
 const AuthPage = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { mutate, isPending } = useAuth();
     const authPage: "signin" | "signup" = searchParams.get("mode") === "signin" ? "signin" : "signup";
 
     function changeAuthPage() {
@@ -17,29 +16,11 @@ const AuthPage = () => {
         router.push(`/auth?mode=${nextMode}`);
     }
 
-    async function handleAuthenthication(e: React.SyntheticEvent<HTMLFormElement>) {
-        try {
-            e.preventDefault()
-            const formData = new FormData(e.currentTarget)
-
-            const serverResponse = await authethicate(formData, authPage);
-
-            console.log("serverResponse :", serverResponse);
-
-            if (!serverResponse.success) {
-                toastError(`${serverResponse.message}`);
-            }
-            if (serverResponse.success) {
-                router.push("/")
-            }
-
-        } catch (error) {
-            const errorMessage = handleError(error)
-            toastError(errorMessage);
-        }
+    function handleAuthenthication(e: React.SyntheticEvent<HTMLFormElement>) {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        mutate({ formData, mode: authPage });
     }
-
-
 
     return (
         <main className='w-screen h-screen flex items-center justify-center'>
@@ -68,8 +49,16 @@ const AuthPage = () => {
                         </>
                     }
 
-                    <button type="submit" className="w-full mt-6 mb-4 px-4 py-2.5 font-medium text-white bg-ind rounded-md hover:bg-ind-dark focus:outline-none">
-                        {authPage === "signup" ? "Sign Up" : "Log in"}
+                    <button type="submit" disabled={isPending} className="w-full mt-6 mb-4 px-4 py-2.5 font-medium text-white bg-ind rounded-md hover:bg-ind-dark focus:outline-none disabled:opacity-70">
+                        {isPending ? (
+                            <span className="flex items-center justify-center gap-1.5">
+                                <span className="animate-dotPulse h-2 w-2 rounded-full bg-white" />
+                                <span className="animate-dotPulse h-2 w-2 rounded-full bg-white" style={{ animationDelay: "150ms" }} />
+                                <span className="animate-dotPulse h-2 w-2 rounded-full bg-white" style={{ animationDelay: "300ms" }} />
+                            </span>
+                        ) : (
+                            authPage === "signup" ? "Sign Up" : "Log in"
+                        )}
                     </button>
 
                     <p className='text-xs'>{authPage === "signup" ? "Already have an account ? " : "Want to create new ? "}

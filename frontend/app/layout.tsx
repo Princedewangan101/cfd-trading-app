@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./css/globals.css";
 import { Toaster } from "react-hot-toast";
+import Providers from "@/components/providers/Providers";
 
 const inter = Inter({
   subsets: ["latin"]
@@ -23,7 +24,7 @@ export default function RootLayout({
       className={`${inter.className} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
+        <Providers>{children}</Providers>
         <Toaster
           position="bottom-left"
           reverseOrder={false}
