@@ -1,10 +1,12 @@
 "use client";
 
 import { useAppStore } from '@/store/store';
+import { useBalance } from '@/hooks/useBalance';
 import { ChevronDown } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 
 const BalanceBox = () => {
+  useBalance()
   const totalBalance = useAppStore((state) => state.totalBalance)
   const availableBalance = useAppStore((state) => state.availableBalance)
   const lockedBalance = useAppStore((state) => state.lockedBalance)
@@ -27,7 +29,7 @@ const BalanceBox = () => {
       <button
         type="button"
         onClick={() => setDropdownOpen((prev) => !prev)}
-        className='flex items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-zinc-800/60'
+        className='flex items-center gap-1 rounded-md px-2 py-1 transition-colors'
       >
         <span className='text-sm font-medium tabular-nums text-gray-200'>
           ${totalBalance.toLocaleString("en-US")}

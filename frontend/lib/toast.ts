@@ -14,7 +14,6 @@ export type ToastAction = keyof typeof actionMessages;
 
 const promiseToastOptions: ToastOptions = {
     duration: 4000,
-    iconTheme: { primary: "#4f46e5", secondary: "#09090b" },
     style: {
         background: "rgba(39, 39, 42, 0.95)",
         color: "#f4f4f5",
