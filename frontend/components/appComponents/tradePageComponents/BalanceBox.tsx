@@ -6,7 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 
 const BalanceBox = () => {
-  useBalance()
+  const { isPending, isError } = useBalance()
   const totalBalance = useAppStore((state) => state.totalBalance)
   const availableBalance = useAppStore((state) => state.availableBalance)
   const lockedBalance = useAppStore((state) => state.lockedBalance)
@@ -31,9 +31,13 @@ const BalanceBox = () => {
         onClick={() => setDropdownOpen((prev) => !prev)}
         className='flex items-center gap-1 rounded-md px-2 py-1 transition-colors'
       >
-        <span className='text-sm font-medium tabular-nums text-gray-200'>
-          ${totalBalance.toLocaleString("en-US")}
-        </span>
+        {isPending || isError ? (
+          <div className='skeleton h-5 w-24 rounded' />
+        ) : (
+          <span className='text-sm font-medium tabular-nums text-gray-200'>
+            ${totalBalance.toLocaleString("en-US")}
+          </span>
+        )}
         <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
       </button>
 
