@@ -20,7 +20,7 @@ export async function marketOrder(req: Request, res: Response) {
 
 
     try {
-        const checkResponse = await check(res, ikey, userId, "marketOrder");
+        const checkResponse = await check(ikey, userId, "marketOrder");
         if (!checkResponse) {
             return res.status(400).json({ success: false, message: "Failed in idempotency check." })
         } else {

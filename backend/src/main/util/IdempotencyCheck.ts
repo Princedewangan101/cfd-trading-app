@@ -1,11 +1,13 @@
-import { response, type Response } from 'express';
 import { prisma } from "../../config/db.js";
 import { redis } from "../../config/redis.js";
 import { setIdemResponse } from './IdempotencyResponseUpdate.js';
 
+export interface IdempotencyCheckResult {
+    responseType: "firstRequest" | "duplicateRequest" | "alreadyHaveResponse";
+    response?: string;
+}
 
-
-export async function check(res: Response, ikey: string, userId: string, keyHolder: string) {
+export async function check(ikey: string, userId: string, keyHolder: string): Promise<IdempotencyCheckResult | undefined> {
     const cacheResponse = await redis.exists(`${keyHolder}${ikey}`);
     let iKeyResponse;
     let dbResponseObj;
@@ -35,8 +37,7 @@ export async function check(res: Response, ikey: string, userId: string, keyHold
         console.log("\n> REQ ALREADY COMPLETED");
         if (!dbResponseObj) { return }
         await redis.set(`${keyHolder}${ikey}`, dbResponseObj.response, "EX", 300)
-        return { responseType: "alreadyHaveResponse", response: dbResponseObj?.response }
-        return res.status(200).json({ success: true, response: dbResponseObj?.response });
+        return { responseType: "alreadyHaveResponse", response: dbResponseObj.response }
 
     } else if (cacheResponse === 1 && iKeyResponse === "first-req-running") {
 
@@ -48,7 +49,7 @@ export async function check(res: Response, ikey: string, userId: string, keyHold
         console.log("\n> REQ ALREADY COMPLETED");
         if (!iKeyResponse) { return }
         await redis.set(`${keyHolder}${ikey}`, iKeyResponse, "EX", 300)
-        return { responseType: "alreadyHaveResponse", response: iKeyResponse}
+        return { responseType: "alreadyHaveResponse", response: iKeyResponse }
 
     }
 }

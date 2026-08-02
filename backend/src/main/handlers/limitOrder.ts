@@ -24,7 +24,7 @@ export async function limitOrder(req: Request, res: Response) {
     }
 
     try {
-        const checkResponse = check(res, ikey, userId, "limitOrder");
+        const checkResponse = await check(ikey, userId, "limitOrder");
         if (!checkResponse) {
             return res.status(400).json({ success: false, message: "Failed in idempotency check." })
         } else {

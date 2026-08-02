@@ -20,7 +20,7 @@ export async function deposit(req: Request, res: Response) {
     }
 
     try {
-        const checkResponse = await check(res, ikey, userId, "deposit")
+        const checkResponse = await check(ikey, userId, "deposit")
         if (!checkResponse) {
             return res.status(400).json({ success: false, message: "Failed in idempotency check." })
         } else {

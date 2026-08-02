@@ -14,7 +14,7 @@ export async function withdraw(req: Request, res: Response) {
     if (!ikey || !userId || !amount) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
 
     try {
-        const checkResponse = await check(res, ikey, userId, "withdraw");
+        const checkResponse = await check(ikey, userId, "withdraw");
         if (!checkResponse) {
             return res.status(400).json({ success: false, message: "Failed in idempotency check." })
         } else {
