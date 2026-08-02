@@ -6,14 +6,17 @@ export const grpcService = {
         try {
             let { symbol, timeFrame, from, take } = call.request;
 
+            const fromNum = from ? Number(from) : undefined;
+            const takeNum = take ? Number(take) : undefined;
+
             const candles = await prisma.candle.findMany({
                 where: {
                     symbol,
                     timeFrame,
-                    ...(from ? { time: { lt: Number(from) } } : {})
+                    ...(fromNum ? { time: { lt: fromNum } } : {})
                 },
                 orderBy: { time: 'desc' },
-                ...(take ? { take: Number(take) } : {})
+                ...(takeNum ? { take: takeNum } : {})
             })
 
             const orderedCandles = candles.reverse();
