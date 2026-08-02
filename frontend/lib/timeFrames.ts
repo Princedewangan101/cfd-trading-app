@@ -1,4 +1,4 @@
-export const timeFrame = [{"time":"1m"}, {"time":"5m"}, {"time":"15m"}, {"time":"30m"}, {"time":"1h"}, {"time":"4h"}, {"time":"1d"}, {"time":"1w"}, {"time":"1M"}]
+export const timeFrame = [{"time":"1m", "label":"1m"}, {"time":"5m", "label":"5m"}, {"time":"15m", "label":"15m"}, {"time":"30m", "label":"30m"}, {"time":"1h", "label":"1h"}, {"time":"4h", "label":"4h"}, {"time":"1d", "label":"1d"}, {"time":"1w", "label":"1w"}, {"time":"1month", "label":"1M"}]
 
 export const chartAdjuster = ["%", "log", "auto"]
 

@@ -226,15 +226,15 @@ const Charts = ({ symbol }: { symbol: string }) => {
       <div className="w-full flex bg-zinc-s rounded py-1">
         <div className="h-full flex gap-1 ml-3">
           {
-            timeFrame.map(({ time }) => {
-              const isHidden = !isTimeFrameExpanded && ["4h", "1d", "1w", "1M"].includes(time);
+            timeFrame.map(({ time, label }) => {
+              const isHidden = !isTimeFrameExpanded && ["4h", "1d", "1w", "1month"].includes(time);
               if (isHidden) return null;
               return (
                 <div
                   onClick={() => { setChartTimeFrame(time) }}
                   key={time}
                   className={`${chartTimeFrame === time && "bg-zinc-800"} flex items-center justify-center text-sm p-1 w-8 h-full rounded-sm hover:bg-zinc-800 hover:cursor-pointer`}>
-                  {time}
+                  {label}
                 </div>
               )
             })
