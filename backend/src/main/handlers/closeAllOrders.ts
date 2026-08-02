@@ -17,7 +17,7 @@ export async function closeAllOrders(req: Request, res: Response) {
 
     try {
         const openOrders = await prisma.order.findMany({
-            where: { userId, status: OrderStatus.EXECUTED }
+            where: { userId, status: OrderStatus.RUNNING }
         });
 
         if (openOrders.length === 0) {

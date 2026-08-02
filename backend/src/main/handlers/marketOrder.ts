@@ -94,7 +94,7 @@ export async function marketOrder(req: Request, res: Response) {
             const transactionResult = await tx.order.create({
                 data: {
                     userId, symbol, side, quantity: Number(quantity), leverage: Number(leverage), openPrice: Number(livePrice), closePrice: null, tp: null, sl: null,
-                    status: OrderStatus.EXECUTED
+                    status: OrderStatus.RUNNING
                 }
             })
             return { transactionResult, balance: updateBalanceResult.balance };

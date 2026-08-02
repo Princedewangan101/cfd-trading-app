@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { balance } from '../handlers/getBalance.js';
+import { getOrders } from '../handlers/getOrders.js';
 import { signup } from '../authHandlers/signup.js';
 import { signin } from '../authHandlers/signin.js';
 import { withdraw } from '../handlers/withdraw.js';
@@ -16,6 +17,7 @@ import { sseHandler } from '../sse/sse.js';
 const router = Router()
 
 router.get('/balance', authMiddleware, balance)
+router.get('/orders', authMiddleware, getOrders)
 router.get('/candles/:symbol/:timeFrame', candles)
 
 router.post('/market', authMiddleware, marketOrder)

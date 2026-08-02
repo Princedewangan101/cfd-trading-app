@@ -37,6 +37,7 @@ model Order {
   leverage   Int
   openPrice  Decimal?         @db.Decimal(10, 2)
   closePrice Decimal?         @db.Decimal(10, 2)
+  pnl        Decimal?         @db.Decimal(10, 2)
   tp         Decimal?         @db.Decimal(10, 2)
   sl         Decimal?         @db.Decimal(10, 2)
   status     OrderStatus @default(PENDING)

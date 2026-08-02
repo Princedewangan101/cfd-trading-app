@@ -63,7 +63,7 @@ async function handleOrderExecuted(parsedResponse: EventFromEngine) {
             orderId: String(parsedResponse.orderId), userId: String(parsedResponse.userId)
         },
         data: {
-            openPrice: Number(Number(parsedResponse.openPrice) / 100), status: "EXECUTED"
+            openPrice: Number(Number(parsedResponse.openPrice) / 100), status: "RUNNING"
         }
     })
     broadcast("orderExecuted", parsedResponse)
