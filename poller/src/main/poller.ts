@@ -11,7 +11,7 @@ if (!BACKPACK_URL) {
 }
 
 const symbols = ["BTC", "ETH", "SOL"];
-const timeFrames = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1M"];
+const timeFrames = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1month"];
 
 const klineSymbol = timeFrames.flatMap((tf) => symbols.map((sym) => `kline.${tf}.${sym}_USDC`))
 
@@ -51,7 +51,7 @@ export const startPoller = async () => {
     ws.on("message", async (data: any) => {
         try {
             const parsedData = JSON.parse(data.toString());
-            // console.log("\n> parsedData :", parsedData);
+            console.log("\n> parsedData :", parsedData);
 
             const { X: isClose } = parsedData.data
 
