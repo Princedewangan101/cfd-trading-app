@@ -56,7 +56,7 @@ export const startPoller = async () => {
             const { X: isClose } = parsedData.data
 
             if (parsedData.data.c) {
-                const price = String((Number(parsedData.data.c) * 100).toFixed())
+                const price = String(Number(parsedData.data.c).toFixed(2))
                 if (price !== lastPrice) {
                     // "2375633"
                     await redis.set(`LIVE-PRICE-${parsedData.data.s}`, price)
