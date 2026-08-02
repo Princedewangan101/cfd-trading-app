@@ -51,7 +51,7 @@ export const startPoller = async () => {
     ws.on("message", async (data: any) => {
         try {
             const parsedData = JSON.parse(data.toString());
-            console.log("\n> parsedData :", parsedData);
+            // console.log("\n> parsedData :", parsedData);
 
             const { X: isClose } = parsedData.data
 
@@ -64,7 +64,7 @@ export const startPoller = async () => {
                         await nc.publish(`price.${parsedData.data.s}`, JSON.stringify({ symbol: parsedData.data.s, price: Number(price) }))
                     }
                     lastPrice = price
-                    console.log("\n> [DATA] (poller.ts) :", { symbol: parsedData.data.s, price });
+                    // console.log("\n> [DATA] (poller.ts) :", { symbol: parsedData.data.s, price });
                 }
             }
 
