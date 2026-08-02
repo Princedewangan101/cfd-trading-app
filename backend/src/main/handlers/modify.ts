@@ -1,7 +1,7 @@
 import { type Request, type Response } from 'express';
 import { prisma } from '../../config/db.js';
-import { redis } from '../../config/redis.js';
 import { natsRequest } from '../../config/nats.js';
+import { getLivePrice } from '../util/livePrice.js';
 import { SUBJECTS } from '../../type/type.js';
 
 export async function modify(req: Request, res: Response) {
@@ -24,27 +24,27 @@ export async function modify(req: Request, res: Response) {
         return res.status(404).json({ success: false, message: "Not found destructure price, side , symbol" })
     }
 
-    const livePrice = await redis.get(`LIVE-PRICE-${symbol}`);
-    if (!livePrice) { return res.status(404).json({ success: false, messge: "Live price not found." }) }
+    const livePrice = await getLivePrice(symbol);
+    if (livePrice === null) { return res.status(404).json({ success: false, messge: "Live price not found." }) }
 
     switch (side) {
         case "BUY":
             if (tp) {
                 if (Number(tp) < Number(openPrice)) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
-                if (Number(tp) <= Number(livePrice)) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
+                if (Number(tp) <= livePrice) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
             }
             if (sl) {
-                if (Number(sl) > Number(livePrice)) { return res.status(400).json({ success: false, messge: "Invalid stop loss" }) }
+                if (Number(sl) > livePrice) { return res.status(400).json({ success: false, messge: "Invalid stop loss" }) }
             }
             break;
 
         case "SELL":
             if (tp) {
                 if (Number(tp) > Number(openPrice)) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
-                if (Number(tp) >= Number(livePrice)) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
+                if (Number(tp) >= livePrice) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
             }
             if (sl) {
-                if (Number(sl) < Number(livePrice)) { return res.status(400).json({ success: false, messge: "Invalid stop loss" }) }
+                if (Number(sl) < livePrice) { return res.status(400).json({ success: false, messge: "Invalid stop loss" }) }
             }
             break;
     }

@@ -3,6 +3,7 @@ import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
 import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
 import { check } from '../util/IdempotencyCheck.js';
+import { getLivePrice } from '../util/livePrice.js';
 import { OrderStatus } from '../../generated/prisma/client.js';
 
 
@@ -41,12 +42,12 @@ export async function marketOrder(req: Request, res: Response) {
             }
         }
 
-        const livePrice = await redis.get(`LIVE-PRICE-${symbol}`) || "67888.33";
-        if (!livePrice) {
+        const livePrice = await getLivePrice(symbol);
+        if (livePrice === null) {
             return res.status(404).json({ success: false, message: "Live price not found." })
         }
 
-        const orderCost = Number(quantity) * (Number(livePrice) / Number(leverage));
+        const orderCost = Number(quantity) * (livePrice / Number(leverage));
         const fee = 0.20 // dollar per quantity
         const orderCostWithFee = orderCost + (Number(quantity) * Number(fee))
 
@@ -93,7 +94,7 @@ export async function marketOrder(req: Request, res: Response) {
 
             const transactionResult = await tx.order.create({
                 data: {
-                    userId, symbol, side, quantity: Number(quantity), leverage: Number(leverage), openPrice: Number(livePrice), closePrice: null, tp: null, sl: null,
+                    userId, symbol, side, quantity: Number(quantity), leverage: Number(leverage), openPrice: livePrice, closePrice: null, tp: null, sl: null,
                     status: OrderStatus.RUNNING
                 }
             })
