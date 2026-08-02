@@ -17,7 +17,7 @@ model User {
   email            String  @unique
   userName         String 
   password         String 
-  balance          Int     @default(0)
+  balance          Decimal?        @db.Decimal(10, 2)@default(0)
   isProfitable     Boolean @default(false)
   pendingOrder     Int     @default(0)
   activeOrder      Int     @default(0)
@@ -33,12 +33,12 @@ model Order {
   userId     String
   symbol     String
   side       OrderSide
-  quantity   Int
+  quantity   Decimal?         @db.Decimal(4, 2)
   leverage   Int
-  openPrice  Int
-  closePrice Int?
-  tp         Int?
-  sl         Int?
+  openPrice  Decimal?         @db.Decimal(10, 2)
+  closePrice Decimal?         @db.Decimal(10, 2)
+  tp         Decimal?         @db.Decimal(10, 2)
+  sl         Decimal?         @db.Decimal(10, 2)
   status     OrderStatus @default(PENDING)
   createdAt  DateTime    @default(now())
 
@@ -49,7 +49,7 @@ model Transaction {
   transactionId String          @id @unique @default(uuid())
   userId        String
   orderId       String?
-  amount        Int
+  amount        Decimal         @db.Decimal(10, 2)
   type          TransactionType
   createdAt     DateTime        @default(now())
 }
@@ -74,9 +74,9 @@ enum TransactionType {
 
 enum OrderStatus {
   PENDING
-  EXECUTED
+  RUNNING
   COMPLETED
-  CANCEL
+  CLOSED
 }
 
 enum OrderSide {
