@@ -163,7 +163,8 @@ const Charts = ({ symbol }: { symbol: string }) => {
         try {
           const parsedData = JSON.parse(e.data);
           const { o, h, l, c, t } = parsedData.data;
-          const time = Math.floor(new Date(t).getTime() / 1000) as UTCTimestamp
+          const hasTimeZone = /(Z|[+-]\d{2}:?\d{2})$/i.test(t);
+          const time = Math.floor(new Date(hasTimeZone ? t : `${t}Z`).getTime() / 1000) as UTCTimestamp
 
           if (isChartReady.current && seriesRef.current) {
             seriesRef.current.update({
