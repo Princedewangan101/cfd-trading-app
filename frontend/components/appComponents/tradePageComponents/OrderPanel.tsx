@@ -23,6 +23,13 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
     return setLeverageSliderValue([1, selectedValue])
   }
 
+  function handleNumericInput(value: string) {
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      return value;
+    }
+    return value.slice(0, -1);
+  }
+
   function handleOrderSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -93,12 +100,13 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
         <label htmlFor="quantity" className="mb-1.5 block text-sm font-medium text-slate-300">Quantity</label>
         <input
           required
-          type="number"
+          type="text"
+          inputMode="decimal"
           id="quantity"
           name="quantity"
           placeholder="0.01"
           value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
+          onChange={(e) => setQuantity(handleNumericInput(e.target.value))}
           className={inputClass}
         />
       </div>
@@ -109,12 +117,13 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
           <label htmlFor="price" className="mb-1.5 block text-sm font-medium text-slate-300">Price</label>
           <input
             required
-            type="number"
+            type="text"
+            inputMode="decimal"
             id="price"
             name="price"
             placeholder="63867.90"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => setPrice(handleNumericInput(e.target.value))}
             className={inputClass}
           />
         </div>
