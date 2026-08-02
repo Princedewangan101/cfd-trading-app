@@ -1,10 +1,21 @@
-export async function fetchOlderData(symbol: string | null) {
-    const validSymbols = ['Sol/Usd', 'Btc/Usd', 'Eth/Usd'];
+import axios from "axios";
+import { config } from "@/lib/config";
+import { BACKEND_URL } from "@/lib/url";
+import { mapCandles, type Candle } from "@/hooks/useCandles";
 
-    if (!symbol || !validSymbols.includes(symbol)) {
-        throw new Error(`Symbol "${symbol}" is not supported or is null!`);
+export async function fetchOlderData(
+    symbol: string,
+    timeFrame: string,
+    from: number,
+    take = 80
+): Promise<Candle[]> {
+    try {
+        const serverResponse = await axios.get(
+            `${BACKEND_URL.candles}/${symbol}/${timeFrame}`,
+            { ...config, params: { from, take } }
+        );
+        return mapCandles(serverResponse.data?.candles ?? []);
+    } catch {
+        return [];
     }
-
-    console.log("Fetching data for:", symbol);
-    // Your DB logic here...
 }

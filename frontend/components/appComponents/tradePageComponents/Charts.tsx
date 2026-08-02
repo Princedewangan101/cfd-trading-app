@@ -2,23 +2,36 @@
 
 import React from "react";
 import { useEffect, useRef } from "react";
-import { loadInitialData } from "@/app/utils/loadInitialData";
 import { debounce } from "@/app/utils/deBounce";
-import { createChart, ColorType, CandlestickSeries, type UTCTimestamp } from "lightweight-charts";
+import { createChart, ColorType, CandlestickSeries, type UTCTimestamp, type IChartApi, type ISeriesApi, type CandlestickData } from "lightweight-charts";
 import { chartAdjuster, timeFrame } from "@/lib/timeFrames";
 import DotLoader from "./DotLoader";
 import DrawerHeader from "./DrawerHeader";
 import { ChevronRight } from "lucide-react";
 import { barColour } from "@/lib/barColor";
-import { dummyData } from "@/lib/candleDummyData";
+import { useCandles, type Candle } from "@/hooks/useCandles";
+import { fetchOlderData } from "@/app/utils/fetchOlderData";
+
+function formatBars(rawCandles: Candle[]) {
+    return rawCandles.map((candle) => ({
+        time: Number(candle.time) as UTCTimestamp,
+        open: Number(candle.open),
+        high: Number(candle.high),
+        low: Number(candle.low),
+        close: Number(candle.close),
+    })).sort((a, b) => a.time - b.time);
+}
 
 
 const Charts = ({ symbol }: { symbol: string }) => {
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const candlesRef = useRef<Candle[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
   const isChartReady = useRef<boolean>(false)
-  const [isChartLoaded, setIsChartLoaded] = React.useState<boolean>(false);
-  const [isFetching, setIsFetching] = React.useState<boolean>(false);
+  const isFetchingRef = useRef<boolean>(false)
   const [chartTimeFrame, setChartTimeFrame] = React.useState<string>("1m");
   const [clock, setClock] = React.useState<string>("00:00:00");
   const [isTimeFrameExpanded, setIsTimeFrameExpanded] = React.useState<boolean>(false);
@@ -39,10 +52,12 @@ const Charts = ({ symbol }: { symbol: string }) => {
   const symbolWithoutSlash = symbol;  // BTCUSD   <- no slash
   const symbolWithUnderScore = `${symbolWithoutSlash.slice(0, -3)}_USD`
 
-  function chart() {
-    if (!chartContainerRef.current) return;
+  const { data: candles = [], isLoading } = useCandles(symbolWithUnderScore, chartTimeFrame);
 
-    let disposed = false;
+  const isChartLoaded = !isLoading && candles.length > 0;
+
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
       autoSize: true,
@@ -69,108 +84,120 @@ const Charts = ({ symbol }: { symbol: string }) => {
 
     const candlestickSeries = chart.addSeries(CandlestickSeries, barColour);
 
-    //  FETCH DATA FROM DB
-    console.log("FETCH DATA FROM DB...");
+    chartRef.current = chart;
+    seriesRef.current = candlestickSeries;
+    isChartReady.current = false;
 
-    initCandleData()
-
-    async function initCandleData() {
-      const result = await loadInitialData(symbolWithUnderScore, chartTimeFrame);
-      if (disposed) return;
-      const candleData = Array.isArray(result) && result.length > 0 ? result : dummyData;
-      // console.log(">>", candleData);
-      const formattedData = candleData.map((candle) => {
-        return {
-          time: Number(candle.time) as UTCTimestamp,
-          open: Number(candle.open),
-          high: Number(candle.high),
-          low: Number(candle.low),
-          close: Number(candle.close),
-        };
-      });
-      formattedData.sort((a, b) => a.time - b.time)
-
-      candlestickSeries.setData([...formattedData]);
-
-      isChartReady.current = true
-
+    if (candlesRef.current.length > 0) {
+      candlestickSeries.setData(formatBars(candlesRef.current));
+      isChartReady.current = true;
     }
 
-    const socket = updateCandle(symbolWithUnderScore)
+    // HANDLE LOADING OF OLDER CHART DATA
+    const debouncedScroll = debounce(() => handleScrollLeftOfChart(), 1000)
 
-    function updateCandle(symbol: string) {
-      if (!process.env.NEXT_PUBLIC_BACKPACK_URL) { throw new Error("NEXT_PUBLIC_BACKPACK_URL not found !!!"); }
-      const ws: WebSocket = new WebSocket(process.env.NEXT_PUBLIC_BACKPACK_URL)
+    chart.timeScale().subscribeVisibleLogicalRangeChange(() => { debouncedScroll(); });
+
+    async function handleScrollLeftOfChart() {
+      const series = seriesRef.current;
+      const activeChart = chartRef.current;
+      if (!series || !activeChart) return;
+      const visibleRange = activeChart.timeScale().getVisibleRange();
+      if (!visibleRange) return;  // Visible Range Output: { from: 1714521600, to: 1714953600 }
+
+      const currentData = series.data() as CandlestickData<UTCTimestamp>[];
+      const firstTime = currentData.length > 0 ? Number(currentData[0].time) : 0;
+      if (!firstTime) return;
+
+      if (Number(visibleRange.from) < firstTime && !isFetchingRef.current) {
+        isFetchingRef.current = true;
+
+        const olderData = await fetchOlderData(symbolWithUnderScore, chartTimeFrame, firstTime);
+
+        if (olderData.length > 0) {
+          const combinedData = [...formatBars(olderData), ...currentData]
+          series.setData(combinedData);
+        }
+
+        isFetchingRef.current = false;
+      }
+    }
+
+    return () => {
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
+    }
+  }, [symbolWithoutSlash, symbolWithUnderScore, chartTimeFrame]);
+
+  useEffect(() => {
+    candlesRef.current = candles;
+    if (!seriesRef.current) return;
+    seriesRef.current.setData(formatBars(candles));
+    isChartReady.current = true;
+  }, [candles]);
+
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_BACKPACK_URL) return;
+
+    let destroyed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = () => {
+      if (destroyed) return;
+      const ws: WebSocket = new WebSocket(process.env.NEXT_PUBLIC_BACKPACK_URL!)
+      wsRef.current = ws
 
       ws.onopen = () => {
         ws.send(
           JSON.stringify({
             method: "SUBSCRIBE",
-            params: [`kline.1m.${symbol}C`],
+            params: [`kline.${chartTimeFrame}.${symbolWithUnderScore}C`],
             id: 1,
           })
         );
       };
 
       ws.onmessage = (e: MessageEvent) => {
-        if (disposed) return;
-        const parsedData = JSON.parse(e.data);
-        const { o, h, l, c, t } = parsedData.data;
-        const time = Math.floor(new Date(t).getTime() / 1000) as UTCTimestamp
-        console.log("> t (ws) :", time);
+        if (destroyed) return;
+        try {
+          const parsedData = JSON.parse(e.data);
+          const { o, h, l, c, t } = parsedData.data;
+          const time = Math.floor(new Date(t).getTime() / 1000) as UTCTimestamp
 
-        if (isChartReady.current) {
-          candlestickSeries.update({
-            time,
-            open: Number(o),
-            high: Number(h),
-            low: Number(l),
-            close: Number(c),
-          })
+          if (isChartReady.current && seriesRef.current) {
+            seriesRef.current.update({
+              time,
+              open: Number(o),
+              high: Number(h),
+              low: Number(l),
+              close: Number(c),
+            })
+          }
+        } catch (error) {
+          console.log("\n> [ERROR] (Charts.tsx) :", (error as Error).message);
         }
       };
 
-      return ws
-    }
+      ws.onclose = () => {
+        console.log("\n> [INFO] (Charts.tsx) : ws closed, reconnecting in 1s");
+        if (!destroyed) reconnectTimer = setTimeout(connect, 1000);
+      };
 
-    // HANDLE LOADING OF OLDER CHART DATA
-    const debouncedScroll = debounce(handleScrollLeftOfChart, 1000)
+      ws.onerror = () => {
+        ws.close();
+      };
+    };
 
-    chart.timeScale().subscribeVisibleLogicalRangeChange(() => { debouncedScroll(); });
-
-    function handleScrollLeftOfChart() {
-      const visibleRange = chart.timeScale().getVisibleRange();
-      if (!visibleRange) return;  // Visible Range Output: { from: 1714521600, to: 1714953600 }
-
-      if (Number(visibleRange.from) < Number(candlestickSeries.data()[0]?.time) && !isFetching) {
-        setIsFetching(true);
-
-        // TODO: HAVE TO FETCH DATA FROM DB
-        // const olderData = await fetchOlderData(symbol, visibleRange.from)
-        const olderData = dummyData
-
-        const combinedData = [...olderData, ...candlestickSeries.data()]
-        candlestickSeries.setData(combinedData);
-
-        setIsFetching(false);
-      }
-    }
+    connect();
 
     return () => {
-      disposed = true;
-      chart.remove();
-      socket.close()
+      destroyed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      wsRef.current?.close();
+      wsRef.current = null;
     }
-  }
-
-  useEffect(() => {
-    setIsChartLoaded(false)
-    const cleanup = chart()
-    setIsChartLoaded(true)
-    return cleanup
-  }, [symbolWithoutSlash]);
-
-
+  }, [symbolWithUnderScore, chartTimeFrame]);
 
   return (
     <div className="relative flex w-full flex-col bg-zinc-950 px-2 pt-2 rounded">
