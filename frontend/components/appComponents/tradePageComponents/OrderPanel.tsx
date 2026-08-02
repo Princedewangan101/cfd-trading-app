@@ -158,7 +158,7 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
       <button
         type="submit"
         disabled={order.isPending}
-        className={`flex h-11 w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-80 ${side === "BUY" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500 hover:bg-red-600"}`}
+        className={`flex h-11 w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-80 ${side === "BUY" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-600/60 hover:bg-red-600/75"}`}
       >
         {order.isPending ? (
           <span className="flex items-center gap-1">

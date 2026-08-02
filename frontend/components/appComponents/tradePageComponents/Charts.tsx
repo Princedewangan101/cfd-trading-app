@@ -175,9 +175,15 @@ const Charts = ({ symbol }: { symbol: string }) => {
   return (
     <div className="relative flex w-full flex-col bg-zinc-950 px-2 pt-2 rounded">
       {/* CHART */}
-      <div ref={chartContainerRef} className="relative z-0 h-[55vh] min-h-[420px]" />
+      <div className="relative h-[55vh] min-h-[420px]">
+        <div ref={chartContainerRef} className="absolute inset-0" />
 
-      {!isChartLoaded && (<DotLoader />)}
+        {!isChartLoaded && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/60">
+            <DotLoader />
+          </div>
+        )}
+      </div>
 
       <div className="absolute z-10 top-0 left-4">
         <div className="border px-5">

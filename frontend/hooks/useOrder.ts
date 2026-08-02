@@ -51,6 +51,7 @@ export function useOrder() {
             showActionPromise(orderType, () => placeOrder(orderType, payload)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["balance"] });
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
         },
     });
 }

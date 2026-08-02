@@ -2,10 +2,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, Star } from 'lucide-react'
+import { ArrowUpRight, BarChart3, ChevronDown, Plus, Star, TrendingDown, TrendingUp } from 'lucide-react'
 import solanalogo from "../../../asset/solanalogo.png";
 import BalanceBox from './BalanceBox';
 import RampBox from './RampBox';
+import AvatarMenu from '../AvatarMenu';
 
 const SYMBOLS = ["BTC", "ETH", "SOL"];
 
@@ -290,7 +291,10 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                 {/* 24H STATS */}
                 <div className='ml-4 hidden items-center gap-5 md:flex'>
                     <div className='leading-tight'>
-                        <p className='text-[10px] uppercase tracking-wider text-gray-500'>24h High</p>
+                        <p className='flex items-center gap-1 text-[10px] uppercase tracking-wider text-gray-500'>
+                            <TrendingUp className='h-3 w-3 text-emerald-500/70' />
+                            24h High
+                        </p>
                         {!ticker ? (
                             <div className='skeleton mt-0.5 h-4 w-16 rounded' />
                         ) : (
@@ -298,11 +302,25 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                         )}
                     </div>
                     <div className='leading-tight'>
-                        <p className='text-[10px] uppercase tracking-wider text-gray-500'>24h Low</p>
+                        <p className='flex items-center gap-1 text-[10px] uppercase tracking-wider text-gray-500'>
+                            <TrendingDown className='h-3 w-3 text-red-500/70' />
+                            24h Low
+                        </p>
                         {!ticker ? (
                             <div className='skeleton mt-0.5 h-4 w-16 rounded' />
                         ) : (
                             <p className='tabular-nums text-xs text-gray-300'>{formatPrice(ticker.l)}</p>
+                        )}
+                    </div>
+                    <div className='leading-tight'>
+                        <p className='flex items-center gap-1 text-[10px] uppercase tracking-wider text-gray-500'>
+                            <BarChart3 className='h-3 w-3 text-sky-500/70' />
+                            24h Volume
+                        </p>
+                        {!ticker ? (
+                            <div className='skeleton mt-0.5 h-4 w-16 rounded' />
+                        ) : (
+                            <p className='tabular-nums text-xs text-gray-300'>{formatVolume(ticker.V)}</p>
                         )}
                     </div>
                 </div>
@@ -315,21 +333,24 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                         <button
                             type="button"
                             onClick={() => setRampOpen((prev) => !prev)}
-                            className='rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
+                            className='flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
                         >
+                            <Plus className='h-3.5 w-3.5' />
                             Deposit
                         </button>
                         <button
                             type="button"
                             onClick={() => setRampOpen((prev) => !prev)}
-                            className='rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
+                            className='flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
                         >
                             Withdraw
+                            <ArrowUpRight className='h-3.5 w-3.5' />
                         </button>
                     </div>
                     {rampOpen && <RampBox />}
                 </div>
                 <BalanceBox />
+                <AvatarMenu size="sm" />
             </div>
         </div>
     )
