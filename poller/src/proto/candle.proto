@@ -10,6 +10,8 @@ service CandleService {
 message CandleRequest {
     string symbol = 1;
     string timeFrame = 2;
+    int64 from = 3;
+    int32 take = 4;
 }
 
 message CandleResponse {

@@ -12,7 +12,7 @@ export function initGrpc(server: any) {
         oneofs: true,
     });
 
-    const proto = grpc.loadPackageDefinition(packageDefination)
+    const proto = grpc.loadPackageDefinition(packageDefination) as any
 
     server.addService(proto.candles.CandleService.service, grpcService)
 

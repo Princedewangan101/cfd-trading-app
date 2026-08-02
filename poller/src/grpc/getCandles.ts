@@ -3,21 +3,22 @@ import * as grpc from '@grpc/grpc-js';
 
 export const grpcService = {
     GetCandles: async (call: any, callback: any) => {
-        // console.log("> call (in grpc, GetCandles) :", call);
         try {
-
-            let { symbol, timeFrame } = call.request;
+            let { symbol, timeFrame, from, take } = call.request;
 
             const candles = await prisma.candle.findMany({
-                where: { symbol, timeFrame },
-                // select: {  open: true, close: true, high: true, low: true }
-                // take: 50,
-                // skip: 0
+                where: {
+                    symbol,
+                    timeFrame,
+                    ...(from ? { time: { lt: Number(from) } } : {})
+                },
+                orderBy: { time: 'desc' },
+                ...(take ? { take: Number(take) } : {})
             })
 
-            // console.log("> candles (in grpc, GetCandles) :", candles);
+            const orderedCandles = candles.reverse();
 
-            callback(null, { candles });
+            callback(null, { candles: orderedCandles });
 
         } catch (error: any) {
             console.log("> ERROR (in grpc, GetCandles) :", error.message);

@@ -10,8 +10,10 @@ if (!BACKPACK_URL) {
     throw new Error("BACKPACK_WS_URL is not defined in .env file");
 }
 
-// const klineSymbol = ["kline.1m.ETH_USDC", "kline.1m.BTC_USDC", "kline.1m.SOL_USDC"]
-const klineSymbol = ["kline.1m.BTC_USDC"]
+const symbols = ["BTC", "ETH", "SOL"];
+const timeFrames = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1M"];
+
+const klineSymbol = timeFrames.flatMap((tf) => symbols.map((sym) => `kline.${tf}.${sym}_USDC`))
 
 let nc: NatsConnection | null = null;
 let connecting = false;
