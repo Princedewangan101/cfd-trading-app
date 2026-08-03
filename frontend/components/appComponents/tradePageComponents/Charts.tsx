@@ -3,7 +3,7 @@
 import React from "react";
 import { useEffect, useRef } from "react";
 import { debounce } from "@/app/utils/deBounce";
-import { createChart, ColorType, CandlestickSeries, type UTCTimestamp, type IChartApi, type ISeriesApi, type CandlestickData } from "lightweight-charts";
+import { createChart, ColorType, CandlestickSeries, TickMarkType, type UTCTimestamp, type Time, type IChartApi, type ISeriesApi, type CandlestickData } from "lightweight-charts";
 import { chartAdjuster, timeFrame } from "@/lib/timeFrames";
 import DotLoader from "./DotLoader";
 import DrawerHeader from "./DrawerHeader";
@@ -22,6 +22,24 @@ function formatBars(rawCandles: Candle[]) {
     })).sort((a, b) => a.time - b.time);
 }
 
+const TIMEZONES = [
+    { label: "New York", value: "America/New_York" },
+    { label: "Chicago", value: "America/Chicago" },
+    { label: "Los Angeles", value: "America/Los_Angeles" },
+    { label: "London", value: "Europe/London" },
+    { label: "Berlin", value: "Europe/Berlin" },
+    { label: "Dubai", value: "Asia/Dubai" },
+    { label: "India (IST)", value: "Asia/Kolkata" },
+    { label: "Singapore", value: "Asia/Singapore" },
+    { label: "Tokyo", value: "Asia/Tokyo" },
+    { label: "Sydney", value: "Australia/Sydney" },
+];
+
+const getLocalZone = () => {
+    if (typeof window === "undefined") return "UTC";
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+};
+
 
 const Charts = ({ symbol }: { symbol: string }) => {
 
@@ -35,18 +53,48 @@ const Charts = ({ symbol }: { symbol: string }) => {
   const [chartTimeFrame, setChartTimeFrame] = React.useState<string>("1m");
   const [clock, setClock] = React.useState<string>("00:00:00");
   const [isTimeFrameExpanded, setIsTimeFrameExpanded] = React.useState<boolean>(false);
+  const [timezone, setTimezone] = React.useState<string>(getLocalZone);
+
+  const timeFormatter = React.useCallback((time: Time) => {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(Number(time as UTCTimestamp) * 1000));
+  }, [timezone]);
+
+  const tickMarkFormatter = React.useCallback((time: Time, tickMarkType: TickMarkType, locale: string) => {
+    let options: Intl.DateTimeFormatOptions;
+    switch (tickMarkType) {
+      case TickMarkType.Year: options = { year: "numeric" }; break;
+      case TickMarkType.Month: options = { month: "short" }; break;
+      case TickMarkType.DayOfMonth: options = { day: "2-digit", month: "short" }; break;
+      case TickMarkType.Time: options = { hour: "2-digit", minute: "2-digit", hour12: false }; break;
+      default: options = { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }; break;
+    }
+    return new Intl.DateTimeFormat(locale, { timeZone: timezone, ...options }).format(new Date(Number(time as UTCTimestamp) * 1000));
+  }, [timezone]);
 
   React.useEffect(() => {
     const updateClock = () => {
       const now = new Date();
       setClock(
-        `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
+        new Intl.DateTimeFormat("en-GB", {
+          timeZone: timezone,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }).format(now)
       );
     };
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [timezone]);
 
 
   const symbolWithoutSlash = symbol;  // BTCUSD   <- no slash
@@ -65,9 +113,13 @@ const Charts = ({ symbol }: { symbol: string }) => {
         background: { type: ColorType.Solid, color: "#09090b" },
         textColor: "gray",
       },
+      localization: {
+        timeFormatter,
+      },
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
+        tickMarkFormatter,
       },
     })
 
@@ -128,7 +180,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
       chartRef.current = null;
       seriesRef.current = null;
     }
-  }, [symbolWithoutSlash, symbolWithUnderScore, chartTimeFrame]);
+  }, [symbolWithoutSlash, symbolWithUnderScore, chartTimeFrame, timeFormatter, tickMarkFormatter, timezone]);
 
   useEffect(() => {
     candlesRef.current = candles;
@@ -248,6 +300,18 @@ const Charts = ({ symbol }: { symbol: string }) => {
           </button>
         </div>
         <div className="flex gap-1 ml-auto mr-3 h-full items-center">
+          <div className="flex items-center rounded bg-zinc-800 px-1.5 py-0.5">
+            <select
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className="bg-transparent text-xs text-gray-400 outline-none [&>option]:bg-zinc-900"
+              aria-label="Time zone"
+            >
+              {[{ label: "Local", value: getLocalZone() }, ...TIMEZONES.filter((tz) => tz.value !== getLocalZone())].map((tz) => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex items-center rounded bg-zinc-800 px-2 py-0.5 text-sm tabular-nums text-gray-400">{clock}</div>
           {
             chartAdjuster.map((x) =>

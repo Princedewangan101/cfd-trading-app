@@ -2,11 +2,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ArrowUpRight, BarChart3, ChevronDown, Plus, Star, TrendingDown, TrendingUp } from 'lucide-react'
+import { ArrowUpRight, ChevronDown, Plus, Star } from 'lucide-react'
 import solanalogo from "../../../asset/solanalogo.png";
 import BalanceBox from './BalanceBox';
 import RampBox from './RampBox';
 import AvatarMenu from '../AvatarMenu';
+import { useMarketStore } from '@/store/marketStore';
 
 const SYMBOLS = ["BTC", "ETH", "SOL"];
 
@@ -54,6 +55,7 @@ const Topbar = ({ symbol }: { symbol: string }) => {
     const router = useRouter();
     const { base, wsSymbol, image, gradient } = getSymbolMeta(symbol);
     const [tickers, setTickers] = useState<Record<string, Ticker>>({});
+    const setMarketPrice = useMarketStore((state) => state.setPrice);
     const [favorites, setFavorites] = useState<string[]>(() => {
         if (typeof window === "undefined") return [];
         try {
@@ -132,7 +134,10 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                 try {
                     const parsed = JSON.parse(event.data);
                     const data = parsed.data as Ticker;
-                    if (data?.s) setTickers((prev) => ({ ...prev, [data.s]: data }));
+                    if (data?.s) {
+                        setTickers((prev) => ({ ...prev, [data.s]: data }));
+                        setMarketPrice(data.s.slice(0, -5), Number(data.c));
+                    }
                 } catch (error) {
                     console.log("\n> [ERROR] (Topbar.tsx) :", (error as Error).message);
                 }
@@ -151,7 +156,7 @@ const Topbar = ({ symbol }: { symbol: string }) => {
             if (reconnectTimer) clearTimeout(reconnectTimer);
             socket?.close();
         };
-    }, []);
+    }, [setMarketPrice]);
 
     const ticker = tickers[wsSymbol] ?? null;
 
@@ -292,7 +297,6 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                 <div className='ml-4 hidden items-center gap-5 md:flex'>
                     <div className='leading-tight'>
                         <p className='flex items-center gap-1 text-[10px] uppercase tracking-wider text-gray-500'>
-                            <TrendingUp className='h-3 w-3 text-emerald-500/70' />
                             24h High
                         </p>
                         {!ticker ? (
@@ -303,7 +307,6 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                     </div>
                     <div className='leading-tight'>
                         <p className='flex items-center gap-1 text-[10px] uppercase tracking-wider text-gray-500'>
-                            <TrendingDown className='h-3 w-3 text-red-500/70' />
                             24h Low
                         </p>
                         {!ticker ? (
@@ -314,7 +317,6 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                     </div>
                     <div className='leading-tight'>
                         <p className='flex items-center gap-1 text-[10px] uppercase tracking-wider text-gray-500'>
-                            <BarChart3 className='h-3 w-3 text-sky-500/70' />
                             24h Volume
                         </p>
                         {!ticker ? (

@@ -43,7 +43,9 @@ const DrawerHeader = () => {
                         className={`flex min-w-20 items-center justify-center gap-1.5 rounded-md p-2 text-sm transition-colors ${filter === key ? "bg-zinc-800 text-gray-100" : "text-gray-400 hover:bg-zinc-800/60 hover:text-gray-200"}`}
                     >
                         {label}
-                        <span className="shrink-0 whitespace-nowrap rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">{counts[key]}</span>
+                        {counts[key] >= 1 && (
+                            <span className="shrink-0 whitespace-nowrap rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">{counts[key]}</span>
+                        )}
                     </button>
                 ))}
             </div>
