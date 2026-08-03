@@ -53,7 +53,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
   const [chartTimeFrame, setChartTimeFrame] = React.useState<string>("1m");
   const [clock, setClock] = React.useState<string>("00:00:00");
   const [isTimeFrameExpanded, setIsTimeFrameExpanded] = React.useState<boolean>(false);
-  const [timezone, setTimezone] = React.useState<string>(getLocalZone);
+  const [timezone, setTimezone] = React.useState<string>("Asia/Kolkata");
 
   const timeFormatter = React.useCallback((time: Time) => {
     return new Intl.DateTimeFormat("en-GB", {
@@ -276,8 +276,8 @@ const Charts = ({ symbol }: { symbol: string }) => {
       </div>
 
       {/* TOOLS */}
-      <div className="w-full flex bg-zinc-s rounded py-1">
-        <div className="h-full flex gap-1 ml-3">
+      <div className="w-full flex bg-zinc-s rounded py-1 px-1">
+        <div className="h-full flex gap-1 ml-1">
           {
             timeFrame.map(({ time, label }) => {
               const isHidden = !isTimeFrameExpanded && ["4h", "1d", "1w", "1month"].includes(time);
@@ -299,7 +299,7 @@ const Charts = ({ symbol }: { symbol: string }) => {
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex gap-1 ml-auto mr-3 h-full items-center">
+        <div className="flex gap-1 ml-auto mr-1 h-full items-center">
           <div className="flex items-center rounded bg-zinc-800 px-1.5 py-0.5">
             <select
               value={timezone}
@@ -308,7 +308,14 @@ const Charts = ({ symbol }: { symbol: string }) => {
               aria-label="Time zone"
             >
               {[{ label: "Local", value: getLocalZone() }, ...TIMEZONES.filter((tz) => tz.value !== getLocalZone())].map((tz) => (
-                <option key={tz.value} value={tz.value}>{tz.label}</option>
+                <option key={tz.value} value={tz.value}>
+                  {tz.label} {new Intl.DateTimeFormat("en-GB", {
+                    timeZone: tz.value,
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  }).format(new Date())}
+                </option>
               ))}
             </select>
           </div>

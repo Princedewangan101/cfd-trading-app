@@ -1,13 +1,13 @@
 "use client";
 import React, { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight, ChevronDown, Plus, Star } from 'lucide-react'
-import solanalogo from "../../../asset/solanalogo.png";
 import BalanceBox from './BalanceBox';
 import RampBox from './RampBox';
 import AvatarMenu from '../AvatarMenu';
+import { CryptoIcon } from '../Crypto';
 import { useMarketStore } from '@/store/marketStore';
+import { useAppStore } from '@/store/store';
 
 const SYMBOLS = ["BTC", "ETH", "SOL"];
 
@@ -24,13 +24,7 @@ interface Ticker {
 const getSymbolMeta = (symbol: string) => {
     const base = symbol.slice(0, -3);
     const wsSymbol = `${base}_USDC`;
-    const image = base === "SOL" ? solanalogo : undefined;
-    const gradient = base === "BTC"
-        ? "from-orange-500 to-orange-700"
-        : base === "ETH"
-            ? "from-indigo-500 to-indigo-700"
-            : "from-cyan-500 to-cyan-700";
-    return { base, wsSymbol, image, gradient };
+    return { base, wsSymbol };
 };
 
 const formatPrice = (value?: string) => {
@@ -53,7 +47,8 @@ const formatVolume = (value?: string) => {
 
 const Topbar = ({ symbol }: { symbol: string }) => {
     const router = useRouter();
-    const { base, wsSymbol, image, gradient } = getSymbolMeta(symbol);
+    const { base, wsSymbol } = getSymbolMeta(symbol);
+    const userId = useAppStore((state) => state.userId);
     const [tickers, setTickers] = useState<Record<string, Ticker>>({});
     const setMarketPrice = useMarketStore((state) => state.setPrice);
     const [favorites, setFavorites] = useState<string[]>(() => {
@@ -187,13 +182,7 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                         onClick={() => setSymbolDropdownOpen((prev) => !prev)}
                         className='flex cursor-pointer items-center gap-1.5'
                     >
-                        {image ? (
-                            <Image src={image} alt={`${base}-logo`} width={24} className='rounded-full' />
-                        ) : (
-                            <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-[10px] font-bold text-white`}>
-                                {base.charAt(0)}
-                            </span>
-                        )}
+                        <CryptoIcon base={base} size={24} />
                         <p className='text-sm font-bold text-gray-100'>
                             {base}
                             <span className='font-normal text-gray-500'> / USD</span>
@@ -245,14 +234,7 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                                     return (
                                         <div key={sym} className='flex items-center justify-between gap-3 px-3 py-2 transition-colors hover:bg-zinc-800/60'>
                                             <div className='flex items-center gap-2'>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleFavorite(sym)}
-                                                    className={`p-0.5 ${isFav ? "text-amber-400" : "text-gray-500 hover:text-gray-300"}`}
-                                                    aria-label={`${isFav ? "Remove" : "Add"} ${sym} to favorites`}
-                                                >
-                                                    <Star className={`h-3.5 w-3.5 ${isFav ? "fill-amber-400" : ""}`} />
-                                                </button>
+                                                <CryptoIcon base={sym} size={20} />
                                                 <button
                                                     type="button"
                                                     onClick={() => { setSymbolDropdownOpen(false); router.push(`/trade/${sym}USD`) }}
@@ -267,6 +249,14 @@ const Topbar = ({ symbol }: { symbol: string }) => {
                                                     {symPercent === null ? "—" : `${symPercent >= 0 ? "+" : ""}${symPercent.toFixed(2)}%`}
                                                 </span>
                                                 <span className='w-12 text-right text-xs tabular-nums text-gray-500'>{formatVolume(data?.V)}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleFavorite(sym)}
+                                                    className={`p-0.5 ${isFav ? "text-amber-400" : "text-gray-500 hover:text-gray-300"}`}
+                                                    aria-label={`${isFav ? "Remove" : "Add"} ${sym} to favorites`}
+                                                >
+                                                    <Star className={`h-3.5 w-3.5 ${isFav ? "fill-amber-400" : ""}`} />
+                                                </button>
                                             </div>
                                         </div>
                                     );
@@ -329,31 +319,33 @@ const Topbar = ({ symbol }: { symbol: string }) => {
             </div>
 
             {/* EQUITY */}
-            <div className='flex items-center gap-2'>
-                <div ref={rampRef} className='relative'>
-                    <div className='flex items-center gap-1'>
-                        <button
-                            type="button"
-                            onClick={() => setRampOpen((prev) => !prev)}
-                            className='flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
-                        >
-                            <Plus className='h-3.5 w-3.5' />
-                            Deposit
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setRampOpen((prev) => !prev)}
-                            className='flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
-                        >
-                            Withdraw
-                            <ArrowUpRight className='h-3.5 w-3.5' />
-                        </button>
+            {userId && (
+                <div className='flex items-center gap-2'>
+                    <div ref={rampRef} className='relative'>
+                        <div className='flex items-center gap-1'>
+                            <button
+                                type="button"
+                                onClick={() => setRampOpen((prev) => !prev)}
+                                className='flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
+                            >
+                                <Plus className='h-3.5 w-3.5' />
+                                Deposit
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setRampOpen((prev) => !prev)}
+                                className='flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-800/60'
+                            >
+                                Withdraw
+                                <ArrowUpRight className='h-3.5 w-3.5' />
+                            </button>
+                        </div>
+                        {rampOpen && <RampBox />}
                     </div>
-                    {rampOpen && <RampBox />}
+                    <BalanceBox />
+                    <AvatarMenu size="sm" />
                 </div>
-                <BalanceBox />
-                <AvatarMenu size="sm" />
-            </div>
+            )}
         </div>
     )
 }

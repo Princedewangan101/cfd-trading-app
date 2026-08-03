@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
+import { CryptoIcon } from "./Crypto";
 
 interface Ticker {
     s: string;
@@ -216,12 +217,10 @@ const MarketTable = () => {
                             className={`group grid ${GRID_COLS} gap-3 border-b border-zinc-900 px-4 py-3 transition-colors last:border-b-0 hover:bg-zinc-900/50`}
                         >
                             <div className="flex items-center gap-2.5">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-gray-300">
-                                    {market.displaySymbol.charAt(0)}
-                                </div>
+                                <CryptoIcon base={market.displaySymbol} size={28} />
                                 <div className="text-sm font-semibold text-gray-100">
                                     {market.displaySymbol}
-                                    <span className="font-normal text-gray-500"> / USD</span>
+                                    <span className="font-bold text-gray-500">/USD</span>
                                 </div>
                             </div>
 

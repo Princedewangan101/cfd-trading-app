@@ -1,9 +1,14 @@
 "use client"
 
 import LeverageSlider from '@/components/ui/LeverageSlider';
+import Link from 'next/link';
 import React from 'react'
 import { useOrder } from '@/hooks/useOrder';
+import { useAppStore } from '@/store/store';
+import { useMarketStore } from '@/store/marketStore';
+import { baseOf } from '@/lib/pnl';
 
+const MARK_PRICE_FALLBACK = 67000;
 
 const OrderPanel = ({ symbol }: { symbol: string }) => {
   const [quantity, setQuantity] = React.useState<number | string>("");
@@ -14,8 +19,10 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
   const [orderType, setOrderType] = React.useState<"market" | "limit">("market");
 
   const order = useOrder();
+  const userId = useAppStore((state) => state.userId);
+  const livePrice = useMarketStore((state) => state.prices[baseOf(symbol)]);
 
-  const markPrice = 67000;
+  const markPrice = livePrice ?? MARK_PRICE_FALLBACK;
   const notional = markPrice * Number(quantity || 0);
   const marginRequired = leverageSliderValue[1] ? notional / leverageSliderValue[1] : 0;
 
@@ -55,6 +62,38 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
       <p className="tabular-nums text-gray-200">{value}</p>
     </div>
   );
+
+  if (!userId) {
+    return (
+      <form onSubmit={(e) => e.preventDefault()} className="flex min-w-75 h-fit flex-col gap-4 rounded bg-zinc-950 px-4 py-5">
+        <div className="flex w-full gap-1 rounded-lg bg-zinc-900/70 p-1">
+          <Link
+            href="/auth?mode=signin"
+            className="flex-1 rounded-md p-2 text-center text-sm font-medium bg-zinc-800 text-gray-100"
+          >
+            Login
+          </Link>
+          <Link
+            href="/auth?mode=signup"
+            className="flex-1 rounded-md p-2 text-center text-sm font-medium text-gray-400 transition-colors hover:text-gray-200"
+          >
+            Sign up
+          </Link>
+        </div>
+
+        <div className="flex flex-col gap-2 rounded-lg bg-zinc-s px-3 py-2.5">
+          {priceRow("Mark Price", `$${markPrice.toLocaleString("en-US")}`)}
+        </div>
+
+        <Link
+          href="/auth"
+          className="flex h-11 w-full items-center justify-center rounded-lg bg-zinc-800 px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors hover:bg-zinc-700"
+        >
+          Login / Sign up
+        </Link>
+      </form>
+    )
+  }
 
   return (
     <form onSubmit={handleOrderSubmit} className="flex min-w-75 h-fit flex-col gap-4 rounded bg-zinc-950 px-4 py-5">
@@ -158,7 +197,7 @@ const OrderPanel = ({ symbol }: { symbol: string }) => {
       <button
         type="submit"
         disabled={order.isPending}
-        className={`flex h-11 w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-80 ${side === "BUY" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-600/60 hover:bg-red-600/75"}`}
+        className={`flex h-11 w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-80 ${side === "BUY" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500 hover:bg-red-600"}`}
       >
         {order.isPending ? (
           <span className="flex items-center gap-1">

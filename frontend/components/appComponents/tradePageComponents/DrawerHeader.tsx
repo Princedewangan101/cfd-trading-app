@@ -33,7 +33,7 @@ const DrawerHeader = () => {
     }
 
     return (
-        <div className="flex justify-between items-center bg-zinc-s rounded mt-1 py-1 px-2">
+        <div className="flex justify-between items-center bg-zinc-s rounded mt-1 py-1 px-1">
             <div className="flex items-center gap-2">
                 {TABS.map(({ key, label }) => (
                     <button

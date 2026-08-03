@@ -8,6 +8,7 @@ import { usePositionStore } from "@/store/positionStore";
 import { useMarketStore } from "@/store/marketStore";
 import { baseOf, computePnl } from "@/lib/pnl";
 import ModifyBox from "./ModifyBox";
+import { useAppStore } from "@/store/store";
 
 const formatPrice = (value: string | number | null | undefined) => {
     if (value === null || value === undefined || value === "") return "-";
@@ -65,6 +66,7 @@ const PositionsTable = () => {
     const filter = usePositionStore((state) => state.filter);
     const closeOrder = useCloseOrder();
     const prices = useMarketStore((state) => state.prices);
+    const userId = useAppStore((state) => state.userId);
     const [modifyOrderId, setModifyOrderId] = useState<string | null>(null);
 
     const filteredOrders = orders.filter((order) => {
@@ -107,7 +109,7 @@ const PositionsTable = () => {
                                     <tr className="border-b border-zinc-900 last:border-b-0">
                                         <td colSpan={12} className="py-2 pl-1 pr-3">
                                             <div className="flex h-48 items-center justify-center">
-                                                <p className="text-sm text-gray-500">No order yet.</p>
+                                                <p className="text-sm text-gray-500">{userId ? "No order yet." : "login or signup"}</p>
                                             </div>
                                         </td>
                                     </tr>
