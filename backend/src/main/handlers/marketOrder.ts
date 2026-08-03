@@ -1,10 +1,12 @@
 import { type Request, type Response } from 'express';
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
+import { natsRequest } from '../../config/nats.js';
 import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
 import { check } from '../util/IdempotencyCheck.js';
 import { getLivePrice } from '../util/livePrice.js';
 import { OrderStatus } from '../../generated/prisma/client.js';
+import { SUBJECTS } from '../../type/type.js';
 
 
 export async function marketOrder(req: Request, res: Response) {
@@ -111,6 +113,14 @@ export async function marketOrder(req: Request, res: Response) {
         console.log("\n> balance :", result.balance);
 
         const { orderId, openPrice, status, createdAt } = result.transactionResult;
+
+        // PUSH ORDER INTO ENGINE AS A LIMIT ORDER AT THE LIVE PRICE SO THE
+        // ENGINE TRACKS IT IN MEMORY (MODIFY/CLOSE/TP-SL OPERATE ON IT UNIFORMLY).
+        try {
+            await natsRequest(SUBJECTS.LIMIT_ORDER_SUBMIT, { orderId, userId, symbol, side, price: livePrice, quantity, leverage });
+        } catch (error: any) {
+            console.log("\n> [WARN] (marketOrder.ts) : failed to push market order to engine, order remains live :", error.message);
+        }
 
         await setIdemResponse(ikey, userId, JSON.stringify({ orderId, price: openPrice, createdAt }))
         console.log("--------------- complete");

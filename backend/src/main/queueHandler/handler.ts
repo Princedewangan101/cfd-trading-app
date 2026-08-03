@@ -63,7 +63,7 @@ async function handleOrderExecuted(parsedResponse: EventFromEngine) {
             orderId: String(parsedResponse.orderId), userId: String(parsedResponse.userId)
         },
         data: {
-            openPrice: Number(Number(parsedResponse.openPrice) / 100), status: "RUNNING"
+            openPrice: Number(parsedResponse.openPrice), status: "RUNNING"
         }
     })
     broadcast("orderExecuted", parsedResponse)
@@ -76,7 +76,7 @@ async function handleOrderCompleted(parsedResponse: EventFromStopOutEngine) {
             orderId: String(parsedResponse.orderObj.orderId), userId: String(parsedResponse.orderObj.userId)
         },
         data: {
-            tp: Number(Number(parsedResponse.orderObj.tp) / 100), sl: Number(Number(parsedResponse.orderObj.sl) / 100), status: "COMPLETED"
+            tp: Number(parsedResponse.orderObj.tp), sl: Number(parsedResponse.orderObj.sl), status: "COMPLETED"
         }
     })
     broadcast("orderCompleted", parsedResponse)
