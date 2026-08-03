@@ -13,22 +13,32 @@ import { marketOrder } from '../handlers/marketOrder.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { candles } from '../handlers/getCandles.js';
 import { sseHandler } from '../sse/sse.js';
+import { validateBody, validateParams } from '../validation/validate.js';
+import {
+    marketOrderSchema,
+    limitOrderSchema,
+    depositSchema,
+    withdrawSchema,
+    closeOrderSchema,
+    modifySchema,
+    candlesParamsSchema,
+} from '../validation/schemas.js';
 
 const router = Router()
 
 router.get('/balance', authMiddleware, balance)
 router.get('/orders', authMiddleware, getOrders)
-router.get('/candles/:symbol/:timeFrame', candles)
+router.get('/candles/:symbol/:timeFrame', validateParams(candlesParamsSchema), candles)
 
-router.post('/market', authMiddleware, marketOrder)
-router.post('/limit', authMiddleware, limitOrder)
-router.post('/close', authMiddleware, closeOrder)
+router.post('/market', authMiddleware, validateBody(marketOrderSchema), marketOrder)
+router.post('/limit', authMiddleware, validateBody(limitOrderSchema), limitOrder)
+router.post('/close', authMiddleware, validateBody(closeOrderSchema), closeOrder)
 router.post('/close-all', authMiddleware, closeAllOrders)
-router.post('/modify', authMiddleware, modify)
+router.post('/modify', authMiddleware, validateBody(modifySchema), modify)
 
 
-router.post('/deposit', authMiddleware, deposit)
-router.post('/withdraw', authMiddleware, withdraw)
+router.post('/deposit', authMiddleware, validateBody(depositSchema), deposit)
+router.post('/withdraw', authMiddleware, validateBody(withdrawSchema), withdraw)
 
 router.post('/signin', signin)
 router.post('/signup', signup)
