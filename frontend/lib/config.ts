@@ -3,6 +3,6 @@ export const config = {
     'Content-Type': 'application/json',
     "Authorization": `Bearer token`
   },
-  timeout: 10000,
+  timeout: 30000,
   withCredentials: true,
 }
