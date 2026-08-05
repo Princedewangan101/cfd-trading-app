@@ -2,7 +2,7 @@ import { type Request, type Response } from 'express';
 import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
 import { getLivePrice } from '../util/livePrice.js';
-import { SUBJECTS } from '../../type/type.js';
+import { SUBJECTS } from '@cfd/contracts';
 
 export async function modify(req: Request, res: Response) {
     const userId = req.userId;

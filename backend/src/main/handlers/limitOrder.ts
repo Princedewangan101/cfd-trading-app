@@ -5,7 +5,7 @@ import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
 import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
 import { OrderStatus } from '../../generated/prisma/client.js';
-import { SUBJECTS } from '../../type/type.js';
+import { SUBJECTS } from '@cfd/contracts';
 import { applyBalanceDelta, getCachedBalance, setBalanceCache } from '../services/balanceService.js';
 import { computeOrderCost, createOrderTx } from '../services/orderService.js';
 

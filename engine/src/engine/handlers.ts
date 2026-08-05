@@ -1,5 +1,5 @@
 import type { NatsConnection } from "nats";
-import { SUBJECTS, type CloseOrderRequest, type LimitOrder, type Side, type TpSlOrder } from "../type/type.js";
+import { SUBJECTS, type CloseOrderRequest, type LimitOrder, type Side, type TpSlOrder } from "@cfd/contracts";
 import { addLimitOrder, livePrices, removeOrderEverywhere, removeUserOrders, tpSlOrderMap } from "./orderBook.js";
 
 export function setupRequestHandlers(nc: NatsConnection) {

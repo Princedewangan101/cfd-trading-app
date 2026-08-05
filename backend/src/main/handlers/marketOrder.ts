@@ -5,7 +5,7 @@ import { natsRequest } from '../../config/nats.js';
 import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
 import { getLivePrice } from '../util/livePrice.js';
 import { OrderStatus } from '../../generated/prisma/client.js';
-import { SUBJECTS } from '../../type/type.js';
+import { SUBJECTS } from '@cfd/contracts';
 import { applyBalanceDelta, getCachedBalance, setBalanceCache } from '../services/balanceService.js';
 import { computeOrderCostWithFee, createOrderTx } from '../services/orderService.js';
 

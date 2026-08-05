@@ -1,5 +1,5 @@
 import type { JetStreamClient, NatsConnection } from "nats";
-import { SUBJECTS, type LimitOrder, type TpSlOrder } from "../type/type.js";
+import { SUBJECTS, type LimitOrder, type TpSlOrder } from "@cfd/contracts";
 import {
     buyLimitOrders,
     getBucket,

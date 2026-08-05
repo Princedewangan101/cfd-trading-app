@@ -3,7 +3,7 @@ import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
 import { OrderStatus } from '../../generated/prisma/enums.js';
-import { SUBJECTS } from '../../type/type.js';
+import { SUBJECTS } from '@cfd/contracts';
 import { getClosePrice } from '../util/livePrice.js';
 import { settleOrder } from '../services/orderService.js';
 

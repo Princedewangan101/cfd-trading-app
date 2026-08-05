@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { addLimitOrder, tpSlOrderMap } from "../engine/orderBook.js";
-import type { Side } from "../type/type.js";
+import type { Side } from "@cfd/contracts";
 
 interface RehydrateRow {
     orderId: string;

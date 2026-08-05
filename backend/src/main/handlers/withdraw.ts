@@ -2,7 +2,7 @@ import { type Request, type Response } from 'express';
 import Decimal from 'decimal.js';
 import { prisma } from '../../config/db.js';
 import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
-import { TransactionType } from '../../type/type.js';
+import { TransactionType } from '@cfd/contracts';
 import { applyBalanceDelta, getCachedBalance, setBalanceCache } from '../services/balanceService.js';
 
 export async function withdraw(req: Request, res: Response) {

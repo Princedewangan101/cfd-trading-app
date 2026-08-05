@@ -1,4 +1,4 @@
-import type { LimitOrder, Side, TpSlOrder, Price, UserId, OrderId, LatestPrice, Symbol } from "../type/type.js";
+import type { LimitOrder, Side, TpSlOrder, Price, UserId, OrderId, LatestPrice, Symbol } from "@cfd/contracts";
 
 // price-bucketed order lists (BTreeMap-like, add/remove/modify per bucket)
 export const buyLimitOrders = new Map<Price, LimitOrder[]>();

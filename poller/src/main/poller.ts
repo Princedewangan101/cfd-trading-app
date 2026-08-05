@@ -2,6 +2,7 @@ import { WebSocket } from 'ws';
 import { redis } from '../config/redis.js';
 import { prisma } from '../lib/prisma.js';
 import { getNats } from '../config/nats.js';
+import { SUBJECTS } from '@cfd/contracts';
 import type { NatsConnection } from 'nats';
 import { saveCandle } from './utils.js';
 
@@ -61,7 +62,7 @@ export const startPoller = async () => {
                     // "2375633"
                     await redis.set(`LIVE-PRICE-${parsedData.data.s}`, price)
                     if (nc) {
-                        await nc.publish(`price.${parsedData.data.s}`, JSON.stringify({ symbol: parsedData.data.s, price: Number(price) }))
+                        await nc.publish(`${SUBJECTS.PRICE_PREFIX}${parsedData.data.s}`, JSON.stringify({ symbol: parsedData.data.s, price: Number(price) }))
                     }
                     lastPrice = price
                     // console.log("\n> [DATA] (poller.ts) :", { symbol: parsedData.data.s, price });

@@ -1,7 +1,7 @@
 import { consumerOpts, StorageType, type JsMsg, type NatsConnection } from "nats";
 import { prisma } from "../../config/db";
 import { getNats } from "../../config/nats";
-import { SUBJECTS } from "../../type/type.js";
+import { SUBJECTS } from "@cfd/contracts";
 import { notifyUser } from "../sse/sse.js";
 
 interface EventFromEngine {
