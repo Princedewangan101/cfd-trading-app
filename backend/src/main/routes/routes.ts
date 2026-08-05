@@ -43,7 +43,7 @@ router.post('/withdraw', authMiddleware, validateBody(withdrawSchema), withdraw)
 router.post('/signin', signin)
 router.post('/signup', signup)
 
-router.get('/events', sseHandler)
+router.get('/events', authMiddleware, sseHandler)
 
 
 export default router

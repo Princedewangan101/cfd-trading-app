@@ -2,7 +2,7 @@ import { consumerOpts, StorageType, type JsMsg, type NatsConnection } from "nats
 import { prisma } from "../../config/db";
 import { getNats } from "../../config/nats";
 import { SUBJECTS } from "../../type/type.js";
-import { broadcast } from "../sse/sse.js";
+import { notifyUser } from "../sse/sse.js";
 
 interface EventFromEngine {
     from: string,
@@ -93,26 +93,46 @@ async function handleEvent(msg: JsMsg) {
 
 // { from: "engine", userId: "uuid", orderId: "uuid", openPrice: 2234533 }
 async function handleOrderExecuted(parsedResponse: EventFromEngine) {
+    const orderId = String(parsedResponse.orderId);
+    const userId = String(parsedResponse.userId);
+
+    const current = await prisma.order.findUnique({
+        where: { orderId, userId },
+        select: { status: true },
+    });
+    if (!current || current.status === "RUNNING" || current.status === "COMPLETED") {
+        // already processed (at-least-once redelivery) or order gone
+        return;
+    }
+
     await prisma.order.update({
-        where: {
-            orderId: String(parsedResponse.orderId), userId: String(parsedResponse.userId)
-        },
+        where: { orderId, userId },
         data: {
             openPrice: Number(parsedResponse.openPrice), status: "RUNNING"
         }
     })
-    broadcast("orderExecuted", parsedResponse)
+    await notifyUser(userId, "orderExecuted", parsedResponse)
 }
 
 // {from:"engine", orderObj:{tp:23303, sl:23303, symbol:"SOLUSD",side:"BUY"/"SELL", orderId:"uuid", userId:"uuid"}}
 async function handleOrderCompleted(parsedResponse: EventFromStopOutEngine) {
+    const orderId = String(parsedResponse.orderObj.orderId);
+    const userId = String(parsedResponse.orderObj.userId);
+
+    const current = await prisma.order.findUnique({
+        where: { orderId, userId },
+        select: { status: true },
+    });
+    if (!current || current.status === "COMPLETED") {
+        // already processed (at-least-once redelivery) or order gone
+        return;
+    }
+
     await prisma.order.update({
-        where: {
-            orderId: String(parsedResponse.orderObj.orderId), userId: String(parsedResponse.orderObj.userId)
-        },
+        where: { orderId, userId },
         data: {
             tp: Number(parsedResponse.orderObj.tp), sl: Number(parsedResponse.orderObj.sl), status: "COMPLETED"
         }
     })
-    broadcast("orderCompleted", parsedResponse)
+    await notifyUser(userId, "orderCompleted", parsedResponse)
 }
