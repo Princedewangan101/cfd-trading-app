@@ -6,6 +6,8 @@ import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
 import { OrderStatus } from '../../generated/prisma/client.js';
 import { check } from '../util/IdempotencyCheck.js';
 import { SUBJECTS } from '../../type/type.js';
+import { div, mul, roundUsd } from '../util/money.js';
+import Decimal from 'decimal.js';
 
 // 1. IDEMPOTENCY CHECK.
 // 2. CHECKED THAT USER HAS ENOUGH BALANCE OR NOT (IF BALANCE IS NOT IN CACHE THEN, WE FETCH FROM DB AND USE IT, CACHE IT).
@@ -46,7 +48,7 @@ export async function limitOrder(req: Request, res: Response) {
             }
         }
 
-        const orderCost = Number(quantity) * (Number(price) / Number(leverage));
+        const orderCost = mul(quantity, div(price, leverage));
 
         let balance;
         let userBalanceQuery;
@@ -74,7 +76,7 @@ export async function limitOrder(req: Request, res: Response) {
             console.log("\n> ---------- ERROR : Balance not found.");
             return res.status(404).json({ success: false, message: "Balance not found." })
         }
-        const hasBalance = Number(balance) >= Number(orderCost) ? true : false
+        const hasBalance = new Decimal(balance).gte(orderCost)
 
         if (!hasBalance) {
             console.log("\n> ---------- ERROR : Insufficient balance.");
@@ -85,11 +87,11 @@ export async function limitOrder(req: Request, res: Response) {
             await tx.$queryRaw`SELECT * FROM "User" WHERE "userId" = ${userId} FOR UPDATE`
             const updateBalanceResult = await tx.user.update({
                 where: { userId: userId },
-                data: { balance: { decrement: Number(orderCost) } }
+                data: { balance: { decrement: orderCost.toNumber() } }
             })
             const transactionResult = await tx.order.create({
                 data: {
-                    userId, symbol, side, quantity, leverage, price, openPrice: price, closePrice: null, tp: null, sl: null,
+                    userId, symbol, side, quantity, leverage, price, openPrice: roundUsd(price).toNumber(), closePrice: null, tp: null, sl: null,
                     status: OrderStatus.PENDING
                 }
             })

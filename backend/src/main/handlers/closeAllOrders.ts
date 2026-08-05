@@ -5,6 +5,8 @@ import { natsRequest } from '../../config/nats.js';
 import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
 import { SUBJECTS } from '../../type/type.js';
 import { getClosePrice } from '../util/livePrice.js';
+import Decimal from 'decimal.js';
+import { add, div, mul, sub } from '../util/money.js';
 
 type engineResult = {success:boolean, id:string, closePrice:string}
 
@@ -25,8 +27,8 @@ export async function closeAllOrders(req: Request, res: Response) {
             return res.status(200).json({ success: true, data: { success: true, message: "No open orders to close." } });
         }
 
-        const closedOrders: { orderId: string, closePrice: string, pnl: number }[] = [];
-        let totalPnl = 0;
+        const closedOrders: { orderId: string, closePrice: string, pnl: Decimal }[] = [];
+        let totalPnl = new Decimal(0);
 
         for (const order of openOrders) {
             const id = crypto.randomUUID();
@@ -55,32 +57,32 @@ export async function closeAllOrders(req: Request, res: Response) {
             }
 
             const pnl = order.side === "BUY"
-                ? (Number(closePrice) - Number(order.openPrice))
-                : (Number(order.openPrice) - Number(closePrice));
+                ? sub(closePrice, order.openPrice ?? 0)
+                : sub(order.openPrice ?? 0, closePrice);
 
             closedOrders.push({ orderId: order.orderId, closePrice, pnl });
-            totalPnl += pnl;
+            totalPnl = add(totalPnl, pnl);
         }
 
         const result = await prisma.$transaction(async (tx: any) => {
             for (const closed of closedOrders) {
-                const order = openOrders.find((o) => o.orderId === closed.orderId);
+                const order = openOrders.find((o) => o.orderId === closed.orderId)!;
 
-                if (closed.pnl > 0) {
+                if (closed.pnl.gt(0)) {
                     await tx.transaction.create({
-                        data: { orderId: closed.orderId, userId, type: TransactionType.PROFIT, amount: closed.pnl }
+                        data: { orderId: closed.orderId, userId, type: TransactionType.PROFIT, amount: closed.pnl.toNumber() }
                     })
                 } else {
                     await tx.transaction.create({
-                        data: { orderId: closed.orderId, userId, type: TransactionType.LOSS, amount: closed.pnl }
+                        data: { orderId: closed.orderId, userId, type: TransactionType.LOSS, amount: closed.pnl.toNumber() }
                     });
                 }
 
-                const releaseBalance: number = Number(order?.quantity) * Number(order?.openPrice) / Number(order?.leverage)
+                const releaseBalance = mul(order.quantity ?? 0, div(order.openPrice ?? 0, order.leverage))
 
                 await tx.user.update({
                     where: { userId },
-                    data: { balance: { increment: Number(releaseBalance) + Number(closed.pnl) } }
+                    data: { balance: { increment: add(releaseBalance, closed.pnl).toNumber() } }
                 });
 
                 await tx.order.update({
@@ -99,7 +101,7 @@ export async function closeAllOrders(req: Request, res: Response) {
 
         return res.status(200).json({
             success: true,
-            data: { success: true, data: { closedCount: closedOrders.length, totalPnl, message: "All orders closed successfully." } }
+            data: { success: true, data: { closedCount: closedOrders.length, totalPnl: totalPnl.toNumber(), message: "All orders closed successfully." } }
         })
 
     } catch (error: any) {

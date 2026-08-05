@@ -5,6 +5,7 @@ import { natsRequest } from '../../config/nats.js';
 import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
 import { SUBJECTS } from '../../type/type.js';
 import { getClosePrice } from '../util/livePrice.js';
+import { add, div, mul, sub } from '../util/money.js';
 
 type engineResult = {success:boolean, id:string, closePrice:string}
 
@@ -45,38 +46,34 @@ export async function closeOrder(req: Request, res: Response) {
             return res.status(503).json({ success: false, message: "Close price unavailable. Please retry." })
         }
 
-        let pnl: number;
+        const pnl = order.side === "BUY"
+            ? sub(closePrice, order.openPrice ?? 0)
+            : sub(order.openPrice ?? 0, closePrice);
 
-        if (order.side === "BUY") {
-            pnl = (Number(closePrice) - Number(order.openPrice))
-        } else {
-            pnl = (Number(order.openPrice) - Number(closePrice))
-        }
-
-        const releaseBalance: number = Number(order.quantity) * Number(order.openPrice) / Number(order.leverage)
+        const releaseBalance = mul(order.quantity ?? 0, div(order.openPrice ?? 0, order.leverage))
         
         console.log("\n> releaseBalance :", releaseBalance);
 
         const result = await prisma.$transaction(async (tx: any) => {
-            if (pnl > 0) {
+            if (pnl.gt(0)) {
                 await tx.transaction.create({
                     data: {
-                        orderId, userId, type: TransactionType.PROFIT, amount: pnl
+                        orderId, userId, type: TransactionType.PROFIT, amount: pnl.toNumber()
                     }
                 })
             } else {
                 await tx.transaction.create({
                     data: {
-                        orderId, userId, type: TransactionType.LOSS, amount: pnl
+                        orderId, userId, type: TransactionType.LOSS, amount: pnl.toNumber()
                     }
                 });
             }
 
-            const balanceIncrement: number = Number(releaseBalance) + Number(pnl)
+            const balanceIncrement = add(releaseBalance, pnl)
 
             await tx.user.update({
                 where: { userId },
-                data: { balance: { increment: Number(balanceIncrement) } }
+                data: { balance: { increment: balanceIncrement.toNumber() } }
             });
 
             await tx.$queryRaw`SELECT * FROM "Order" WHERE "userId" = ${userId} FOR UPDATE`

@@ -7,6 +7,8 @@ import { check } from '../util/IdempotencyCheck.js';
 import { getLivePrice } from '../util/livePrice.js';
 import { OrderStatus } from '../../generated/prisma/client.js';
 import { SUBJECTS } from '../../type/type.js';
+import Decimal from 'decimal.js';
+import { add, div, mul } from '../util/money.js';
 
 
 export async function marketOrder(req: Request, res: Response) {
@@ -49,9 +51,9 @@ export async function marketOrder(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Live price not found." })
         }
 
-        const orderCost = Number(quantity) * (livePrice / Number(leverage));
-        const fee = 0.20 // dollar per quantity
-        const orderCostWithFee = orderCost + (Number(quantity) * Number(fee))
+        const orderCost = mul(quantity, div(livePrice, leverage));
+        const fee = new Decimal("0.20") // dollar per quantity
+        const orderCostWithFee = add(orderCost, mul(quantity, fee))
 
         let balance;
         let userBalanceQuery;
@@ -80,7 +82,7 @@ export async function marketOrder(req: Request, res: Response) {
             console.log("\n> ---------- ERROR : Balance not found.");
             return res.status(404).json({ success: false, message: "Balance not found." })
         }
-        const hasBalance = Number(balance) >= Number(orderCostWithFee) ? true : false
+        const hasBalance = new Decimal(balance).gte(orderCostWithFee)
 
         if (!hasBalance) {
             console.log("\n> ---------- ERROR : Insufficient balance.");
@@ -91,7 +93,7 @@ export async function marketOrder(req: Request, res: Response) {
             await tx.$queryRaw`SELECT * FROM "User" WHERE "userId" = ${userId} FOR UPDATE`;
             const updateBalanceResult = await tx.user.update({
                 where: { userId: userId },
-                data: { balance: { decrement: Number(orderCostWithFee) } }
+                data: { balance: { decrement: orderCostWithFee.toNumber() } }
             })
 
             const transactionResult = await tx.order.create({
