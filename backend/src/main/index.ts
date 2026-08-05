@@ -12,6 +12,7 @@ import { prisma } from "../config/db.js";
 
 const app = express();
 
+app.set('trust proxy', 1);
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());

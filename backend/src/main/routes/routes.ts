@@ -11,6 +11,7 @@ import { closeAllOrders } from '../handlers/closeAllOrders.js';
 import { limitOrder } from '../handlers/limitOrder.js';
 import { marketOrder } from '../handlers/marketOrder.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
+import { rateLimitAuth } from '../middleware/rateLimit.js';
 import { candles } from '../handlers/getCandles.js';
 import { sseHandler } from '../sse/sse.js';
 import { validateBody, validateParams } from '../validation/validate.js';
@@ -40,8 +41,8 @@ router.post('/modify', authMiddleware, validateBody(modifySchema), modify)
 router.post('/deposit', authMiddleware, validateBody(depositSchema), deposit)
 router.post('/withdraw', authMiddleware, validateBody(withdrawSchema), withdraw)
 
-router.post('/signin', signin)
-router.post('/signup', signup)
+router.post('/signin', rateLimitAuth, signin)
+router.post('/signup', rateLimitAuth, signup)
 
 router.get('/events', authMiddleware, sseHandler)
 
