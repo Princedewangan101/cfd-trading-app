@@ -4,6 +4,7 @@ import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
 import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
 import { SUBJECTS } from '../../type/type.js';
+import { getClosePrice } from '../util/livePrice.js';
 
 type engineResult = {success:boolean, id:string, closePrice:string}
 
@@ -30,22 +31,34 @@ export async function closeAllOrders(req: Request, res: Response) {
         for (const order of openOrders) {
             const id = crypto.randomUUID();
 
-            const engineResult: engineResult = await natsRequest<engineResult>(
-                SUBJECTS.ORDER_CLOSE,
-                { id, orderId: order.orderId, symbol: order.symbol },
-                5000
-            );
-            if (!engineResult.success) {
-                console.log("\n> engineResult :", engineResult);
-                return res.status(400).json({ success: false, message: `Failed to close order ${order.orderId}.` });
+            let closePrice: string | null = null;
+
+            try {
+                const engineResult: engineResult = await natsRequest<engineResult>(
+                    SUBJECTS.ORDER_CLOSE,
+                    { id, orderId: order.orderId, symbol: order.symbol },
+                    1500
+                );
+                if (engineResult.success) {
+                    closePrice = engineResult.closePrice;
+                }
+            } catch (error: any) {
+                console.log("\n> [ERROR] (closeAllOrders.ts) : engine close round-trip failed, falling back to cached price :", error.message);
             }
-            console.log("\n> engineResult :", engineResult);
+
+            if (closePrice === null) {
+                closePrice = await getClosePrice(order.symbol);
+            }
+
+            if (closePrice === null) {
+                return res.status(503).json({ success: false, message: `Close price unavailable for ${order.symbol}. Please retry.` })
+            }
 
             const pnl = order.side === "BUY"
-                ? (Number(engineResult.closePrice) - Number(order.openPrice))
-                : (Number(order.openPrice) - Number(engineResult.closePrice));
+                ? (Number(closePrice) - Number(order.openPrice))
+                : (Number(order.openPrice) - Number(closePrice));
 
-            closedOrders.push({ orderId: order.orderId, closePrice: engineResult.closePrice, pnl });
+            closedOrders.push({ orderId: order.orderId, closePrice, pnl });
             totalPnl += pnl;
         }
 

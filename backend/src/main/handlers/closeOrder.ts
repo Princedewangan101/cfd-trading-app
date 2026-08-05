@@ -4,6 +4,7 @@ import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
 import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
 import { SUBJECTS } from '../../type/type.js';
+import { getClosePrice } from '../util/livePrice.js';
 
 type engineResult = {success:boolean, id:string, closePrice:string}
 
@@ -12,7 +13,7 @@ export async function closeOrder(req: Request, res: Response) {
 
     const userId = req.userId;
     const { orderId } = req.body;
-    if (!userId || !orderId) { res.status(404).json({ success: false, message: "Missing required fields !" }) }
+    if (!userId || !orderId) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
 
     try {
         const order = await prisma.order.findFirst({
@@ -25,19 +26,31 @@ export async function closeOrder(req: Request, res: Response) {
         
         const id = crypto.randomUUID()
         
-        const engineResult: engineResult = await natsRequest<engineResult>(SUBJECTS.ORDER_CLOSE, { id, symbol: order.symbol }, 5000);
-        if (!engineResult.success) {
-            console.log("\n> engineResult :", engineResult);
-            return res.status(400).json({success:false, message:"Failed to close order."})
+        let closePrice: string | null = null;
+
+        try {
+            const engineResult: engineResult = await natsRequest<engineResult>(SUBJECTS.ORDER_CLOSE, { id, symbol: order.symbol }, 1500);
+            if (engineResult.success) {
+                closePrice = engineResult.closePrice;
+            }
+        } catch (error: any) {
+            console.log("\n> [ERROR] (closeOrder.ts) : engine close round-trip failed, falling back to cached price :", error.message);
         }
-        console.log("\n> engineResult :", engineResult);
-        
+
+        if (closePrice === null) {
+            closePrice = await getClosePrice(order.symbol);
+        }
+
+        if (closePrice === null) {
+            return res.status(503).json({ success: false, message: "Close price unavailable. Please retry." })
+        }
+
         let pnl: number;
 
         if (order.side === "BUY") {
-            pnl = (Number(engineResult.closePrice) - Number(order.openPrice))
+            pnl = (Number(closePrice) - Number(order.openPrice))
         } else {
-            pnl = (Number(order.openPrice) - Number(engineResult.closePrice))
+            pnl = (Number(order.openPrice) - Number(closePrice))
         }
 
         const releaseBalance: number = Number(order.quantity) * Number(order.openPrice) / Number(order.leverage)
@@ -70,7 +83,7 @@ export async function closeOrder(req: Request, res: Response) {
             const orderResult = await tx.order.update({
                 where: { orderId, userId },
                 data: {
-                    status: OrderStatus.COMPLETED, closePrice: engineResult.closePrice,
+                    status: OrderStatus.COMPLETED, closePrice,
                 },
                 select: { orderId: true, status: true, closePrice: true }
             })
@@ -90,9 +103,9 @@ export async function closeOrder(req: Request, res: Response) {
         
         // await redis.lpush("orderToCancel", JSON.stringify({orderId, side:order.side })) 
 
-        console.log("\n> order closed : ", { success: true, data: { success: true, data: { orderId, status, closePrice:engineResult.closePrice, message: "Order close successfully." } } });
+        console.log("\n> order closed : ", { success: true, data: { success: true, data: { orderId, status, closePrice, message: "Order close successfully." } } });
         
-        return res.status(200).json({ success: true, data: { success: true, data: { orderId, status, closePrice:engineResult.closePrice, message: "Order close successfully." } } })
+        return res.status(200).json({ success: true, data: { success: true, data: { orderId, status, closePrice, message: "Order close successfully." } } })
 
     } catch (error: any) {
         console.log("ERROR (closeOrder.ts) : ", error.message);
