@@ -1,15 +1,13 @@
 import { type Request, type Response } from 'express';
-import { redis } from '../../config/redis.js';
+import Decimal from 'decimal.js';
 import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
 import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
-import { check } from '../util/IdempotencyCheck.js';
 import { getLivePrice } from '../util/livePrice.js';
 import { OrderStatus } from '../../generated/prisma/client.js';
 import { SUBJECTS } from '../../type/type.js';
-import Decimal from 'decimal.js';
-import { add, div, mul } from '../util/money.js';
-
+import { applyBalanceDelta, getCachedBalance, setBalanceCache } from '../services/balanceService.js';
+import { computeOrderCostWithFee, createOrderTx } from '../services/orderService.js';
 
 export async function marketOrder(req: Request, res: Response) {
     console.log("\n\n>> /api/market (api call)");
@@ -22,87 +20,32 @@ export async function marketOrder(req: Request, res: Response) {
         return res.status(404).json({ success: false, message: "missing required fields !" })
     }
 
-
     try {
-        const checkResponse = await check(ikey, userId, "marketOrder");
-        if (!checkResponse) {
-            return res.status(400).json({ success: false, message: "Failed in idempotency check." })
-        } else {
-            switch (checkResponse.responseType) {
-                case "firstRequest":
-                    console.log("\n> 'firstRequest' ");
-                    break;
-
-                case "alreadyHaveResponse":
-                    console.log("\n> 'alreadyHaveResponse'\n> ", { success: true, response: checkResponse.response });
-                    return res.status(200).json({ success: true, response: checkResponse.response });
-
-                case "duplicateRequest":
-                    console.log("\n> 'duplicateRequest'\n> ", { success: false, message: "Duplicate request." });
-                    return res.status(400).json({ success: false, message: "Duplicate request." });
-
-                default:
-                    break;
-            }
-        }
-
         const livePrice = await getLivePrice(symbol);
         if (livePrice === null) {
             return res.status(404).json({ success: false, message: "Live price not found." })
         }
 
-        const orderCost = mul(quantity, div(livePrice, leverage));
-        const fee = new Decimal("0.20") // dollar per quantity
-        const orderCostWithFee = add(orderCost, mul(quantity, fee))
+        const { orderCost, fee, orderCostWithFee } = computeOrderCostWithFee(quantity, livePrice, leverage);
 
-        let balance;
-        let userBalanceQuery;
-
-        const isBalanceInCache = await redis.exists(`balance:${userId}`)
-        console.log("\n> isBalanceInCache :", isBalanceInCache === 0 ? "BAL. 'NOT' IN CACHE" : "BAL. IN CACHE");
-
-        if (isBalanceInCache === 1) {
-            balance = await redis.get(`balance:${userId}`)
-            console.log("\n> balance (GET-FROM-CACHE) :", balance);
-        } else {
-            console.log("\n> FETCHING BAL IN DB ...");
-            userBalanceQuery = await prisma.user.findUnique({ where: { userId }, select: { balance: true } })
-            if (!userBalanceQuery) {
-                console.log("\n> ---------- ERROR : Failed to fetch balance.");
-                return res.status(404).json({ success: false, message: "Failed to fetch balance." })
-            }
-            console.log("\n> userBalanceQuery (FETCH FROM DB) :", userBalanceQuery.balance);
-            balance = userBalanceQuery.balance
-            await redis.set(`balance:${userId}`, String(balance), "EX", 3600);
+        const balance = await getCachedBalance(userId);
+        if (balance === null) {
+            return res.status(404).json({ success: false, message: "Failed to fetch balance." })
         }
 
         console.log(`\n > {lp:${livePrice}, oc:${orderCost}, fee:${fee}, bal:${balance}`);
 
-        if (!balance) {
-            console.log("\n> ---------- ERROR : Balance not found.");
-            return res.status(404).json({ success: false, message: "Balance not found." })
-        }
-        const hasBalance = new Decimal(balance).gte(orderCostWithFee)
-
-        if (!hasBalance) {
-            console.log("\n> ---------- ERROR : Insufficient balance.");
+        if (new Decimal(balance).lt(orderCostWithFee)) {
             return res.status(404).json({ success: false, message: "Insufficient balance." })
         }
 
         const result = await prisma.$transaction(async (tx: any) => {
-            await tx.$queryRaw`SELECT * FROM "User" WHERE "userId" = ${userId} FOR UPDATE`;
-            const updateBalanceResult = await tx.user.update({
-                where: { userId: userId },
-                data: { balance: { decrement: orderCostWithFee.toNumber() } }
-            })
-
-            const transactionResult = await tx.order.create({
-                data: {
-                    userId, symbol, side, quantity: Number(quantity), leverage: Number(leverage), openPrice: livePrice, closePrice: null, tp: null, sl: null,
-                    status: OrderStatus.RUNNING
-                }
-            })
-            return { transactionResult, balance: updateBalanceResult.balance };
+            const newBalance = await applyBalanceDelta(tx, userId, -orderCostWithFee.toNumber());
+            const transactionResult = await createOrderTx(tx, {
+                userId, symbol, side, quantity, leverage,
+                openPrice: livePrice, status: OrderStatus.RUNNING
+            });
+            return { transactionResult, balance: newBalance };
         }, { maxWait: 5000, timeout: 10000 })
 
         if (!result) {
@@ -110,7 +53,7 @@ export async function marketOrder(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Failed to create order." })
         }
 
-        await redis.set(`balance:${userId}`, String(result.balance), "EX", 3600);
+        await setBalanceCache(userId, result.balance);
 
         console.log("\n> balance :", result.balance);
 

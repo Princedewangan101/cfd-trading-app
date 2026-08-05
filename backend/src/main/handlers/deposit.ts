@@ -3,10 +3,7 @@ import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
 import { setIdemResponse } from '../util/IdempotencyResponseUpdate.js';
 import { TransactionType } from '../../type/type.js';
-import { check } from '../util/IdempotencyCheck.js';
-
-// - ADDING DEPOSIT IN TRAN RECORD & INCR BAL. IN USER ROW.
-// - UPDATING BAL. IN REDIS FOR USER
+import { applyBalanceDelta, setBalanceCache } from '../services/balanceService.js';
 
 export async function deposit(req: Request, res: Response) {
     console.log("\n\n>> /api/deposit");
@@ -20,38 +17,12 @@ export async function deposit(req: Request, res: Response) {
     }
 
     try {
-        const checkResponse = await check(ikey, userId, "deposit")
-        if (!checkResponse) {
-            return res.status(400).json({ success: false, message: "Failed in idempotency check." })
-        } else {
-            switch (checkResponse.responseType) {
-                case "firstRequest":
-                    console.log("\n> 'firstRequest' ");
-                    break;
-
-                case "alreadyHaveResponse":
-                    console.log("\n> 'alreadyHaveResponse'\n> ", { success: true, response: checkResponse.response });
-                    return res.status(200).json({ success: true, response: checkResponse.response });
-
-                case "duplicateRequest":
-                    console.log("\n> 'duplicateRequest'\n> ", { success: false, message: "Duplicate request." });
-                    return res.status(400).json({ success: false, message: "Duplicate request." });
-
-                default:
-                    break;
-            }
-        }
-
         const result = await prisma.$transaction(async (tx: any) => {
-            await tx.$queryRaw`SELECT * FROM "User" WHERE "userId" = ${userId} FOR UPDATE`;
-            const updateBalanceResult = await tx.user.update({
-                where: { userId: String(userId) },
-                data: { balance: { increment: Number(amount) } }
-            });
+            const balance = await applyBalanceDelta(tx, userId, Number(amount));
             const transactionResult = await tx.transaction.create({
                 data: { userId, orderId: "-", amount: Number(amount), type: TransactionType.DEPOSIT }
             });
-            return { transactionId: transactionResult.transactionId, balance: updateBalanceResult.balance };
+            return { transactionId: transactionResult.transactionId, balance };
         }, {
             maxWait: 5000,
             timeout: 10000
@@ -62,7 +33,7 @@ export async function deposit(req: Request, res: Response) {
             return res.status(400).json({ success: false, message: "Failed to deposit." })
         }
 
-        await redis.set(`balance:${userId}`, String(result.balance), "EX", 3600);
+        await setBalanceCache(userId, result.balance);
 
         console.log("\n> balance :", result.balance);
 

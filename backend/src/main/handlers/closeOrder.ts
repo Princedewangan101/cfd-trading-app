@@ -2,10 +2,10 @@ import { type Request, type Response } from 'express';
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
-import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
+import { OrderStatus } from '../../generated/prisma/enums.js';
 import { SUBJECTS } from '../../type/type.js';
 import { getClosePrice } from '../util/livePrice.js';
-import { add, div, mul, sub } from '../util/money.js';
+import { settleOrder } from '../services/orderService.js';
 
 type engineResult = {success:boolean, id:string, closePrice:string}
 
@@ -46,34 +46,10 @@ export async function closeOrder(req: Request, res: Response) {
             return res.status(503).json({ success: false, message: "Close price unavailable. Please retry." })
         }
 
-        const pnl = order.side === "BUY"
-            ? sub(closePrice, order.openPrice ?? 0)
-            : sub(order.openPrice ?? 0, closePrice);
-
-        const releaseBalance = mul(order.quantity ?? 0, div(order.openPrice ?? 0, order.leverage))
-        
-        console.log("\n> releaseBalance :", releaseBalance);
-
         const result = await prisma.$transaction(async (tx: any) => {
-            if (pnl.gt(0)) {
-                await tx.transaction.create({
-                    data: {
-                        orderId, userId, type: TransactionType.PROFIT, amount: pnl.toNumber()
-                    }
-                })
-            } else {
-                await tx.transaction.create({
-                    data: {
-                        orderId, userId, type: TransactionType.LOSS, amount: pnl.toNumber()
-                    }
-                });
-            }
-
-            const balanceIncrement = add(releaseBalance, pnl)
-
-            await tx.user.update({
-                where: { userId },
-                data: { balance: { increment: balanceIncrement.toNumber() } }
+            await settleOrder(tx, {
+                orderId, userId, side: order.side, closePrice,
+                openPrice: order.openPrice ?? 0, quantity: order.quantity ?? 0, leverage: order.leverage,
             });
 
             await tx.$queryRaw`SELECT * FROM "Order" WHERE "userId" = ${userId} FOR UPDATE`

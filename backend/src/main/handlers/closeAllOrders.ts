@@ -2,11 +2,12 @@ import { type Request, type Response } from 'express';
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/db.js';
 import { natsRequest } from '../../config/nats.js';
-import { OrderStatus, TransactionType } from '../../generated/prisma/enums.js';
+import { OrderStatus } from '../../generated/prisma/enums.js';
 import { SUBJECTS } from '../../type/type.js';
 import { getClosePrice } from '../util/livePrice.js';
 import Decimal from 'decimal.js';
-import { add, div, mul, sub } from '../util/money.js';
+import { add, sub } from '../util/money.js';
+import { settleOrder } from '../services/orderService.js';
 
 type engineResult = {success:boolean, id:string, closePrice:string}
 
@@ -68,21 +69,9 @@ export async function closeAllOrders(req: Request, res: Response) {
             for (const closed of closedOrders) {
                 const order = openOrders.find((o) => o.orderId === closed.orderId)!;
 
-                if (closed.pnl.gt(0)) {
-                    await tx.transaction.create({
-                        data: { orderId: closed.orderId, userId, type: TransactionType.PROFIT, amount: closed.pnl.toNumber() }
-                    })
-                } else {
-                    await tx.transaction.create({
-                        data: { orderId: closed.orderId, userId, type: TransactionType.LOSS, amount: closed.pnl.toNumber() }
-                    });
-                }
-
-                const releaseBalance = mul(order.quantity ?? 0, div(order.openPrice ?? 0, order.leverage))
-
-                await tx.user.update({
-                    where: { userId },
-                    data: { balance: { increment: add(releaseBalance, closed.pnl).toNumber() } }
+                await settleOrder(tx, {
+                    orderId: closed.orderId, userId, side: order.side, closePrice: closed.closePrice,
+                    openPrice: order.openPrice ?? 0, quantity: order.quantity ?? 0, leverage: order.leverage,
                 });
 
                 await tx.order.update({
