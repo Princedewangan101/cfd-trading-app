@@ -1,3 +1,4 @@
+import { consumerOpts, StorageType, type JsMsg, type NatsConnection } from "nats";
 import { prisma } from "../../config/db";
 import { getNats } from "../../config/nats";
 import { SUBJECTS } from "../../type/type.js";
@@ -22,38 +23,72 @@ interface EventFromStopOutEngine {
     }
 }
 
+const DLQ_STREAM = "DLQ";
+
+async function ensureStreams(nc: NatsConnection) {
+    const jsm = await nc.jetstreamManager();
+    try {
+        await jsm.streams.info("ORDERS");
+    } catch {
+        await jsm.streams.add({ name: "ORDERS", subjects: ["backend.order.>"], storage: StorageType.File });
+        console.log("\n> [INFO] (handler.ts) : created JetStream stream ORDERS on backend.order.>");
+    }
+    try {
+        await jsm.streams.info(DLQ_STREAM);
+    } catch {
+        await jsm.streams.add({
+            name: DLQ_STREAM,
+            subjects: [
+                "$JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.ORDERS.>",
+                "$JS.EVENT.ADVISORY.CONSUMER.MSG_TERMINATED.ORDERS.>",
+            ],
+            storage: StorageType.File,
+        });
+        console.log(`\n> [INFO] (handler.ts) : created JetStream DLQ stream (${DLQ_STREAM}) for failed deliveries`);
+    }
+}
+
 export async function setupEventHandler() {
     const nc = await getNats();
+    await ensureStreams(nc);
 
-    nc.subscribe(SUBJECTS.ORDER_EXECUTED, {
-        callback: (err, msg) => {
-            if (err) return;
-            const parsedResponse = JSON.parse(msg.data.toString()) as EventFromEngine;
-            if (!parsedResponse) {
-                console.log("ERROR : failed to parse engine event.");
+    const opts = consumerOpts();
+    opts.durable("backend-orders")
+        .deliverTo("backend-orders.deliver")
+        .ackExplicit()
+        .deliverAll()
+        .maxDeliver(3)
+        .ackWait(30_000)
+        .filterSubject(SUBJECTS.ORDER_EXECUTED)
+        .filterSubject(SUBJECTS.ORDER_COMPLETED)
+        .manualAck()
+        .callback((err, msg) => {
+            if (err) {
+                console.log("\n> [ERROR] (handler.ts) : jetstream consumer error :", err.message);
                 return;
             }
-            handleOrderExecuted(parsedResponse).catch(error => {
-                console.log("ERROR (ORDER_EXECUTED) :", error.message);
+            if (!msg) return;
+            handleEvent(msg).catch(error => {
+                console.log("\n> [ERROR] (handler.ts) :", error.message);
+                msg.nak();
             });
-        },
-    });
+        });
 
-    nc.subscribe(SUBJECTS.ORDER_COMPLETED, {
-        callback: (err, msg) => {
-            if (err) return;
-            const parsedResponse = JSON.parse(msg.data.toString()) as EventFromStopOutEngine;
-            if (!parsedResponse) {
-                console.log("ERROR : failed to parse engine event.");
-                return;
-            }
-            handleOrderCompleted(parsedResponse).catch(error => {
-                console.log("ERROR (ORDER_COMPLETED) :", error.message);
-            });
-        },
-    });
+    await nc.jetstream().subscribe("backend.order.>", opts);
 
-    console.log("> NATS event handlers registered");
+    console.log("\n> [INFO] (handler.ts) : NATS JetStream durable consumer 'backend-orders' registered");
+}
+
+async function handleEvent(msg: JsMsg) {
+    const parsed = JSON.parse(new TextDecoder().decode(msg.data));
+
+    if (msg.subject === SUBJECTS.ORDER_EXECUTED) {
+        await handleOrderExecuted(parsed as EventFromEngine);
+    } else if (msg.subject === SUBJECTS.ORDER_COMPLETED) {
+        await handleOrderCompleted(parsed as EventFromStopOutEngine);
+    }
+
+    msg.ack();
 }
 
 // { from: "engine", userId: "uuid", orderId: "uuid", openPrice: 2234533 }
