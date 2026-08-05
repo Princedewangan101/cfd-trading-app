@@ -35,6 +35,7 @@ model Order {
   side       OrderSide
   quantity   Decimal?         @db.Decimal(4, 2)
   leverage   Int
+  price      Decimal?         @db.Decimal(10, 2)
   openPrice  Decimal?         @db.Decimal(10, 2)
   closePrice Decimal?         @db.Decimal(10, 2)
   pnl        Decimal?         @db.Decimal(10, 2)

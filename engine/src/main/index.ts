@@ -1,8 +1,11 @@
+import "dotenv/config";
 import { getNats } from "../config/nats.js";
 import { setupRequestHandlers } from "../engine/handlers.js";
 import { setupPriceListener } from "../engine/matcher.js";
+import { rehydrateOrderBook } from "../boot/rehydrate.js";
 
 async function main() {
+    await rehydrateOrderBook();
     const nc = await getNats();
     setupRequestHandlers(nc);
     setupPriceListener(nc);

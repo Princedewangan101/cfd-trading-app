@@ -89,7 +89,7 @@ export async function limitOrder(req: Request, res: Response) {
             })
             const transactionResult = await tx.order.create({
                 data: {
-                    userId, symbol, side, quantity, leverage, openPrice: price, closePrice: null, tp: null, sl: null,
+                    userId, symbol, side, quantity, leverage, price, openPrice: price, closePrice: null, tp: null, sl: null,
                     status: OrderStatus.PENDING
                 }
             })
