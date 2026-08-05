@@ -10,3 +10,10 @@ export async function getNats(): Promise<NatsConnection> {
     console.log(`> connected to NATS at ${NATS_URL}`);
     return nc;
 }
+
+export async function drainNats(): Promise<void> {
+    if (nc) {
+        await nc.drain();
+        await nc.close();
+    }
+}

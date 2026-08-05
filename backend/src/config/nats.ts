@@ -16,3 +16,10 @@ export async function natsRequest<T = unknown>(subject: string, payload: unknown
     const res = await conn.request(subject, JSON.stringify(payload), { timeout });
     return JSON.parse(res.data.toString()) as T;
 }
+
+export async function drainNats(): Promise<void> {
+    if (nc) {
+        await nc.drain();
+        await nc.close();
+    }
+}
