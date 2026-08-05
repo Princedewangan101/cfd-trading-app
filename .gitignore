@@ -1,13 +1,16 @@
-.opencode
-z*
-
 poller/prisma/migrations
 poller/src/generated
 poller/.env
-poller/package-lock.json
-poller/package.json
 poller/prisma.config.ts
 poller/node_modules
+
+# Scratch planning notes
+z.action-todo.txt
+z.data-flow.txt
+z.improvement.txt
+z.why-nats-pubsub.txt
+frontend/z.fe-context.txt
+frontend/z.todo.txt
 
 # ==========================================
 # 1. Dependency Directories

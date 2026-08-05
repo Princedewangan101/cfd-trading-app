@@ -7,5 +7,9 @@
     "backend",
     "engine",
     "poller"
-  ]
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @cfd/contracts && npm run build --workspace backend && npm run build --workspace engine",
+    "typecheck": "npm run build"
+  }
 }
