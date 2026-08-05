@@ -12,7 +12,7 @@ export async function balance(req: Request, res: Response) {
         return res.status(400).json({ success: false, message: "Invalid required feild !" });
     }
     if (!userId) {
-        return res.status(404).json({ success: false, message: "Missing required fields !" });
+        return res.status(400).json({ success: false, message: "Missing required fields !" });
     }
 
     try {
@@ -32,7 +32,7 @@ export async function balance(req: Request, res: Response) {
                 select: { balance: true }
             })
             if (!result) {
-                return res.status(404).json({ success: false, message: "Failed to get balance." });
+                return res.status(500).json({ success: false, message: "Failed to get balance." });
             }
 
             console.log("\n> balance (FETCH FROM DB) :", result.balance);

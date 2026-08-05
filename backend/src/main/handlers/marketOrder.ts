@@ -17,26 +17,26 @@ export async function marketOrder(req: Request, res: Response) {
     const { ikey, symbol, side, quantity, leverage } = req.body;
     if (!ikey || !symbol || !side || !quantity || !leverage) {
         console.log("\n> ---------- ERROR : missing required fields !");
-        return res.status(404).json({ success: false, message: "missing required fields !" })
+        return res.status(400).json({ success: false, message: "missing required fields !" })
     }
 
     try {
         const livePrice = await getLivePrice(symbol);
         if (livePrice === null) {
-            return res.status(404).json({ success: false, message: "Live price not found." })
+            return res.status(503).json({ success: false, message: "Live price not found." })
         }
 
         const { orderCost, fee, orderCostWithFee } = computeOrderCostWithFee(quantity, livePrice, leverage);
 
         const balance = await getCachedBalance(userId);
         if (balance === null) {
-            return res.status(404).json({ success: false, message: "Failed to fetch balance." })
+            return res.status(500).json({ success: false, message: "Failed to fetch balance." })
         }
 
         console.log(`\n > {lp:${livePrice}, oc:${orderCost}, fee:${fee}, bal:${balance}`);
 
         if (new Decimal(balance).lt(orderCostWithFee)) {
-            return res.status(404).json({ success: false, message: "Insufficient balance." })
+            return res.status(400).json({ success: false, message: "Insufficient balance." })
         }
 
         const result = await prisma.$transaction(async (tx: any) => {
@@ -50,7 +50,7 @@ export async function marketOrder(req: Request, res: Response) {
 
         if (!result) {
             await setIdemResponse(ikey, userId, 'Failed to create order.')
-            return res.status(404).json({ success: false, message: "Failed to create order." })
+            return res.status(500).json({ success: false, message: "Failed to create order." })
         }
 
         await setBalanceCache(userId, result.balance);

@@ -17,7 +17,7 @@ export async function limitOrder(req: Request, res: Response) {
     const { ikey, symbol, price, side, quantity, leverage } = req.body;
     if (!ikey || !symbol || !price || !side || !quantity || !leverage) {
         console.log("\n> ---------- ERROR : missing required fields !");
-        return res.status(404).json({ success: false, message: "missing required fields !" })
+        return res.status(400).json({ success: false, message: "missing required fields !" })
     }
 
     try {
@@ -25,7 +25,7 @@ export async function limitOrder(req: Request, res: Response) {
 
         const balance = await getCachedBalance(userId);
         if (balance === null) {
-            return res.status(404).json({ success: false, message: "Failed to fetch balance." })
+            return res.status(500).json({ success: false, message: "Failed to fetch balance." })
         }
 
         console.log(`\n> {p:${price}, oc:${orderCost}, bal:${balance}`);
@@ -34,7 +34,7 @@ export async function limitOrder(req: Request, res: Response) {
 
         if (!hasBalance) {
             console.log("\n> ---------- ERROR : Insufficient balance.");
-            return res.status(404).json({ success: false, message: "Insufficient balance." })
+            return res.status(400).json({ success: false, message: "Insufficient balance." })
         }
 
         const result = await prisma.$transaction(async (tx: any) => {
@@ -48,7 +48,7 @@ export async function limitOrder(req: Request, res: Response) {
 
         if (!result) {
             await setIdemResponse(ikey, userId, 'failed to create order !')
-            return res.status(404).json({ success: false, message: "failed to create order !" })
+            return res.status(500).json({ success: false, message: "failed to create order !" })
         }
 
         await setBalanceCache(userId, result.balance);

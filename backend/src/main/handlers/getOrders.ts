@@ -10,7 +10,7 @@ export async function getOrders(req: Request, res: Response) {
         return res.status(400).json({ success: false, message: "Invalid required feild !" });
     }
     if (!userId) {
-        return res.status(404).json({ success: false, message: "Missing required fields !" });
+        return res.status(400).json({ success: false, message: "Missing required fields !" });
     }
 
     try {

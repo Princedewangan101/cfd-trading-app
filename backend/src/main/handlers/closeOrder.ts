@@ -14,7 +14,7 @@ export async function closeOrder(req: Request, res: Response) {
 
     const userId = req.userId;
     const { orderId } = req.body;
-    if (!userId || !orderId) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
+    if (!userId || !orderId) { return res.status(400).json({ success: false, message: "Missing required fields !" }) }
 
     try {
         const order = await prisma.order.findFirst({
@@ -22,7 +22,7 @@ export async function closeOrder(req: Request, res: Response) {
         })
 
         if (!order) {
-            return res.status(404).json({ success: false, messge: "Order not found." })
+            return res.status(404).json({ success: false, message: "Order not found." })
         }
         
         const id = crypto.randomUUID()
@@ -35,7 +35,7 @@ export async function closeOrder(req: Request, res: Response) {
                 closePrice = engineResult.closePrice;
             }
         } catch (error: any) {
-            console.log("\n> [ERROR] (closeOrder.ts) : engine close round-trip failed, falling back to cached price :", error.message);
+            req.log.warn({ err: error }, "engine close round-trip failed, falling back to cached price");
         }
 
         if (closePrice === null) {
@@ -67,7 +67,7 @@ export async function closeOrder(req: Request, res: Response) {
         }, { maxWait: 5000, timeout: 10000 })
 
         if (!result) {
-            res.status(400).json({success : false, message:"failed to close order."})
+            res.status(500).json({success : false, message:"failed to close order."})
         }
 
         const { status } = result
@@ -81,7 +81,7 @@ export async function closeOrder(req: Request, res: Response) {
         return res.status(200).json({ success: true, data: { success: true, data: { orderId, status, closePrice, message: "Order close successfully." } } })
 
     } catch (error: any) {
-        console.log("ERROR (closeOrder.ts) : ", error.message);
+        req.log.error({ err: error }, "failed to close order");
         return res.status(500).json({ success: false, message: `Server error !` });
     }
 }

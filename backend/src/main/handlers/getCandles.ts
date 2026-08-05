@@ -11,7 +11,7 @@ export async function candles(req: Request, res: Response) {
     const take = req.query.take ? Number(req.query.take) : undefined;
 
     if (!symbolInUnderScore || !timeFrame) {
-        return res.status(404).json({ success: false, message: "Missing required field !" })
+        return res.status(400).json({ success: false, message: "Missing required field !" })
     }
 
     const symbol = `${symbolInUnderScore.split("_")[0]}/USD`

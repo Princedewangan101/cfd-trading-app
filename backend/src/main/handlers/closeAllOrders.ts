@@ -16,7 +16,7 @@ export async function closeAllOrders(req: Request, res: Response) {
 
     const userId = req.userId;
     if (!userId) {
-        return res.status(404).json({ success: false, message: "Missing required fields !" });
+        return res.status(400).json({ success: false, message: "Missing required fields !" });
     }
 
     try {
@@ -46,7 +46,7 @@ export async function closeAllOrders(req: Request, res: Response) {
                     closePrice = engineResult.closePrice;
                 }
             } catch (error: any) {
-                console.log("\n> [ERROR] (closeAllOrders.ts) : engine close round-trip failed, falling back to cached price :", error.message);
+                req.log.warn({ err: error, symbol: order.symbol }, "engine close round-trip failed, falling back to cached price");
             }
 
             if (closePrice === null) {
@@ -94,7 +94,7 @@ export async function closeAllOrders(req: Request, res: Response) {
         })
 
     } catch (error: any) {
-        console.log("ERROR (closeAllOrders.ts) : ", error.message);
+        req.log.error({ err: error }, "failed to close all orders");
         return res.status(500).json({ success: false, message: `Server error !` });
     }
 }

@@ -10,12 +10,12 @@ export async function withdraw(req: Request, res: Response) {
 
     const userId = req.userId;
     const { ikey, amount } = req.body;
-    if (!ikey || !userId || !amount) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
+    if (!ikey || !userId || !amount) { return res.status(400).json({ success: false, message: "Missing required fields !" }) }
 
     try {
         const balance = await getCachedBalance(userId);
         if (balance === null) {
-            return res.status(404).json({ success: false, message: "" });
+            return res.status(404).json({ success: false, message: "User not found." });
         }
 
         if (new Decimal(balance).lt(amount)) {
@@ -36,7 +36,7 @@ export async function withdraw(req: Request, res: Response) {
 
         if (!result) {
             await setIdemResponse(ikey, userId, "Failed to withdraw.");
-            return res.status(400).json({ success: false, message: "Failed to withdraw." });
+            return res.status(500).json({ success: false, message: "Failed to withdraw." });
         }
         await setIdemResponse(ikey, userId, `transactionId : ${result.transactionId}`);
 

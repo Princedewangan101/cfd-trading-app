@@ -22,7 +22,7 @@ export function idempotency(keyHolder: string) {
         }
 
         if (!checkResponse) {
-            return res.status(400).json({ success: false, message: "Failed in idempotency check." });
+            return res.status(500).json({ success: false, message: "Failed in idempotency check." });
         }
 
         switch (checkResponse.responseType) {
@@ -31,7 +31,7 @@ export function idempotency(keyHolder: string) {
             case "alreadyHaveResponse":
                 return res.status(200).json({ success: true, response: checkResponse.response });
             case "duplicateRequest":
-                return res.status(400).json({ success: false, message: "Duplicate request." });
+                return res.status(409).json({ success: false, message: "Duplicate request." });
             default:
                 return next();
         }

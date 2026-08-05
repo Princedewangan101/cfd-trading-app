@@ -13,7 +13,7 @@ export async function deposit(req: Request, res: Response) {
 
     if (!ikey || !userId || !amount) {
         console.log("\n> ------- ERROR : Missing required fields !");
-        return res.status(404).json({ success: false, message: "Missing required fields !" })
+        return res.status(400).json({ success: false, message: "Missing required fields !" })
     }
 
     try {
@@ -30,7 +30,7 @@ export async function deposit(req: Request, res: Response) {
 
         if (!result) {
             await setIdemResponse(ikey, userId, 'Failed to deposit')
-            return res.status(400).json({ success: false, message: "Failed to deposit." })
+            return res.status(500).json({ success: false, message: "Failed to deposit." })
         }
 
         await setBalanceCache(userId, result.balance);

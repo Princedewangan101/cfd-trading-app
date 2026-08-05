@@ -8,43 +8,43 @@ export async function modify(req: Request, res: Response) {
     const userId = req.userId;
     const { orderId, tp, sl } = req.body;
 
-    if (!orderId || !userId) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
-    if (!tp && !sl) { return res.status(404).json({ success: false, message: "Missing required fields !" }) }
+    if (!orderId || !userId) { return res.status(400).json({ success: false, message: "Missing required fields !" }) }
+    if (!tp && !sl) { return res.status(400).json({ success: false, message: "Missing required fields !" }) }
 
     const validatingTpSlFromOpenPrive = await prisma.order.findUnique({
         where: { orderId },
         select: { openPrice: true, side: true, symbol: true }
     })
     if (!validatingTpSlFromOpenPrive) {
-        return res.status(404).json({ success: false, message: "Open price for validtion not found." })
+        return res.status(404).json({ success: false, message: "Order not found." })
     }
     const { openPrice, side, symbol } = validatingTpSlFromOpenPrive;
 
     if (!openPrice || !side || !symbol) {
-        return res.status(404).json({ success: false, message: "Not found destructure price, side , symbol" })
+        return res.status(500).json({ success: false, message: "Order data is incomplete." })
     }
 
     const livePrice = await getLivePrice(symbol);
-    if (livePrice === null) { return res.status(404).json({ success: false, messge: "Live price not found." }) }
+    if (livePrice === null) { return res.status(503).json({ success: false, message: "Live price not found." }) }
 
     switch (side) {
         case "BUY":
             if (tp) {
-                if (Number(tp) < Number(openPrice)) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
-                if (Number(tp) <= livePrice) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
+                if (Number(tp) < Number(openPrice)) { return res.status(400).json({ success: false, message: "Invalid take profit" }) }
+                if (Number(tp) <= livePrice) { return res.status(400).json({ success: false, message: "Invalid take profit" }) }
             }
             if (sl) {
-                if (Number(sl) > livePrice) { return res.status(400).json({ success: false, messge: "Invalid stop loss" }) }
+                if (Number(sl) > livePrice) { return res.status(400).json({ success: false, message: "Invalid stop loss" }) }
             }
             break;
 
         case "SELL":
             if (tp) {
-                if (Number(tp) > Number(openPrice)) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
-                if (Number(tp) >= livePrice) { return res.status(400).json({ success: false, messge: "Invalid take profit" }) }
+                if (Number(tp) > Number(openPrice)) { return res.status(400).json({ success: false, message: "Invalid take profit" }) }
+                if (Number(tp) >= livePrice) { return res.status(400).json({ success: false, message: "Invalid take profit" }) }
             }
             if (sl) {
-                if (Number(sl) < livePrice) { return res.status(400).json({ success: false, messge: "Invalid stop loss" }) }
+                if (Number(sl) < livePrice) { return res.status(400).json({ success: false, message: "Invalid stop loss" }) }
             }
             break;
     }
@@ -57,7 +57,7 @@ export async function modify(req: Request, res: Response) {
         select: { orderId: true, tp: true, sl: true }
     })
     if (!result) {
-        return res.status(404).json({ success: false, message: "failed to modify order !" })
+        return res.status(500).json({ success: false, message: "Failed to modify order !" })
     }
 
     return res.status(200).json({ success: true, data: { orderId: result.orderId, tp: result.tp, sl: result.sl } })
