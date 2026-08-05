@@ -41,7 +41,7 @@ export async function signin(req: Request, res: Response) {
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "24h" })
 
         res.cookie("token", token, {
-            secure: process.env.NODE_ENVIRONMENT === "production" ? true : false,
+            secure: process.env.NODE_ENV === "production" ? true : false,
             httpOnly: true,
             sameSite: "strict",
             maxAge: 24 * 60 * 60 * 1000

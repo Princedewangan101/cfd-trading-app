@@ -11,6 +11,7 @@ const packageDefination = protoLoader.loadSync('src/proto/candle.proto', {
 })
 
 const proto = grpc.loadPackageDefinition(packageDefination) as unknown as ProtoGrpcType;
-const client = new proto.candles.CandleService("localhost:50051", grpc.credentials.createInsecure())
+const GRPC_URL = process.env.GRPC_URL || "localhost:50051";
+const client = new proto.candles.CandleService(GRPC_URL, grpc.credentials.createInsecure())
 
 export default client;
