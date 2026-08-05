@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { CandlestickChart, ChevronDown, Copy, ImagePlus, LogOut, ReceiptText, Settings, TrendingUp, User } from 'lucide-react'
 import { useAppStore } from '@/store/store'
 import { toastSuccess } from '@/lib/toast'
+import { config } from '@/lib/config'
+import axios from 'axios'
 
 const USER_MENU = [
     { href: "/settings", label: "Settings", Icon: Settings },
@@ -60,8 +62,13 @@ const AvatarMenu = ({ size = "md" }: { size?: "sm" | "md" }) => {
         }
     }, [menuOpen])
 
-    function handleLogout() {
+    async function handleLogout() {
         setMenuOpen(false)
+        try {
+            await axios.post("http://localhost:5000/api/logout", {}, config)
+        } catch {
+            // clear local state even if the server call fails
+        }
         useAppStore.setState({ userId: "", userName: "" })
         router.push("/auth")
     }

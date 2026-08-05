@@ -1,8 +1,9 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { redis } from '../../config/redis.js';
 import type { CustomPayload } from '../../type/authTypeAugmentation';
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
         const token = req.cookies?.token
         if (!token) {
@@ -15,6 +16,13 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as CustomPayload
         if (!decoded.userId) {
             return res.status(401).json({ success: false, message: "Invalid or tampered token." })
+        }
+
+        if (decoded.jti) {
+            const isBlacklisted = await redis.get(`jwt:blacklist:${decoded.jti}`);
+            if (isBlacklisted) {
+                return res.status(401).json({ success: false, message: "Logged out. Please log in again." })
+            }
         }
 
         req.userId = decoded.userId

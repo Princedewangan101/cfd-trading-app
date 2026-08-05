@@ -40,7 +40,7 @@ export async function signup(req: Request, res: Response) {
         }
 
         const payload = { userId: newUser.userId }
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "24h" })
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "24h", jwtid: crypto.randomUUID() })
 
         res.cookie("token", token, {
             secure: process.env.NODE_ENV === "production" ? true : false,

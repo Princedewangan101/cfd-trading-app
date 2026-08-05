@@ -3,6 +3,7 @@ import { balance } from '../handlers/getBalance.js';
 import { getOrders } from '../handlers/getOrders.js';
 import { signup } from '../authHandlers/signup.js';
 import { signin } from '../authHandlers/signin.js';
+import { logout } from '../authHandlers/logout.js';
 import { withdraw } from '../handlers/withdraw.js';
 import { deposit } from '../handlers/deposit.js';
 import { modify } from '../handlers/modify.js';
@@ -43,6 +44,7 @@ router.post('/withdraw', authMiddleware, validateBody(withdrawSchema), withdraw)
 
 router.post('/signin', rateLimitAuth, signin)
 router.post('/signup', rateLimitAuth, signup)
+router.post('/logout', authMiddleware, logout)
 
 router.get('/events', authMiddleware, sseHandler)
 
