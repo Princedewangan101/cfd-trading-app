@@ -1,7 +1,7 @@
 {
   "name": "@cfd/contracts",
   "version": "1.0.0",
-  "description": "Shared contracts for cfd trading app (NATS subjects + domain types)",
+  "description": "Shared contracts for cfd trading app (NATS subjects, domain types, zod request schemas)",
   "license": "ISC",
   "type": "module",
   "main": "dist/index.js",
@@ -18,6 +18,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "npm run build"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

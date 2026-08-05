@@ -15,10 +15,6 @@ export async function marketOrder(req: Request, res: Response) {
     const userId = req.userId;
 
     const { ikey, symbol, side, quantity, leverage } = req.body;
-    if (!ikey || !symbol || !side || !quantity || !leverage) {
-        console.log("\n> ---------- ERROR : missing required fields !");
-        return res.status(400).json({ success: false, message: "missing required fields !" })
-    }
 
     try {
         const livePrice = await getLivePrice(symbol);

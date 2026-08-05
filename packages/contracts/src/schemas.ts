@@ -46,3 +46,10 @@ export const candlesParamsSchema = z.object({
     symbol: z.string().regex(/^[A-Z0-9]+_[A-Z0-9]+$/, "invalid symbol"),
     timeFrame: z.enum(["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1month"]),
 });
+
+export type MarketOrderPayload = z.infer<typeof marketOrderSchema>;
+export type LimitOrderPayload = z.infer<typeof limitOrderSchema>;
+export type DepositPayload = z.infer<typeof depositSchema>;
+export type WithdrawPayload = z.infer<typeof withdrawSchema>;
+export type CloseOrderPayload = z.infer<typeof closeOrderSchema>;
+export type ModifyOrderPayload = z.infer<typeof modifySchema>;

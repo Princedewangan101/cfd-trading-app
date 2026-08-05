@@ -11,11 +11,6 @@ export async function deposit(req: Request, res: Response) {
     const userId = req.userId;
     const { ikey, amount } = req.body;
 
-    if (!ikey || !userId || !amount) {
-        console.log("\n> ------- ERROR : Missing required fields !");
-        return res.status(400).json({ success: false, message: "Missing required fields !" })
-    }
-
     try {
         const result = await prisma.$transaction(async (tx: any) => {
             const balance = await applyBalanceDelta(tx, userId, Number(amount));

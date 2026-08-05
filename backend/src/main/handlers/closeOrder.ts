@@ -14,7 +14,6 @@ export async function closeOrder(req: Request, res: Response) {
 
     const userId = req.userId;
     const { orderId } = req.body;
-    if (!userId || !orderId) { return res.status(400).json({ success: false, message: "Missing required fields !" }) }
 
     try {
         const order = await prisma.order.findFirst({

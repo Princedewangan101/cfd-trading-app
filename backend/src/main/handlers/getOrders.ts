@@ -6,13 +6,6 @@ export async function getOrders(req: Request, res: Response) {
 
     const userId = req.userId;
 
-    if (typeof userId !== 'string') {
-        return res.status(400).json({ success: false, message: "Invalid required feild !" });
-    }
-    if (!userId) {
-        return res.status(400).json({ success: false, message: "Missing required fields !" });
-    }
-
     try {
         const orders = await prisma.order.findMany({
             where: { userId },

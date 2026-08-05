@@ -8,9 +8,6 @@ export async function modify(req: Request, res: Response) {
     const userId = req.userId;
     const { orderId, tp, sl } = req.body;
 
-    if (!orderId || !userId) { return res.status(400).json({ success: false, message: "Missing required fields !" }) }
-    if (!tp && !sl) { return res.status(400).json({ success: false, message: "Missing required fields !" }) }
-
     const validatingTpSlFromOpenPrive = await prisma.order.findUnique({
         where: { orderId },
         select: { openPrice: true, side: true, symbol: true }

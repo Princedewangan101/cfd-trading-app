@@ -25,7 +25,7 @@ import {
     closeOrderSchema,
     modifySchema,
     candlesParamsSchema,
-} from '../validation/schemas.js';
+} from '@cfd/contracts';
 
 const router = Router()
 

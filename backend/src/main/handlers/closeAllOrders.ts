@@ -15,9 +15,6 @@ export async function closeAllOrders(req: Request, res: Response) {
     console.log("\n\n> /api/close-all (api call)");
 
     const userId = req.userId;
-    if (!userId) {
-        return res.status(400).json({ success: false, message: "Missing required fields !" });
-    }
 
     try {
         const openOrders = await prisma.order.findMany({

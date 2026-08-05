@@ -8,13 +8,6 @@ export async function balance(req: Request, res: Response) {
     const userId = req.userId;
     console.log("\n> userId :", userId);
 
-    if (typeof userId !== 'string') {
-        return res.status(400).json({ success: false, message: "Invalid required feild !" });
-    }
-    if (!userId) {
-        return res.status(400).json({ success: false, message: "Missing required fields !" });
-    }
-
     try {
         const balance = await redis.get(`balance:${userId}`);
         console.log("\n> balance (GET FROM CACHE) :", balance ? balance : "BAL NOT IN CACHE.");

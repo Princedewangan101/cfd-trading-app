@@ -15,10 +15,6 @@ export async function limitOrder(req: Request, res: Response) {
     const userId = req.userId;
 
     const { ikey, symbol, price, side, quantity, leverage } = req.body;
-    if (!ikey || !symbol || !price || !side || !quantity || !leverage) {
-        console.log("\n> ---------- ERROR : missing required fields !");
-        return res.status(400).json({ success: false, message: "missing required fields !" })
-    }
 
     try {
         const orderCost = computeOrderCost(quantity, price, leverage);

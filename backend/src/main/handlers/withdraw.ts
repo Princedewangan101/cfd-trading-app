@@ -10,7 +10,6 @@ export async function withdraw(req: Request, res: Response) {
 
     const userId = req.userId;
     const { ikey, amount } = req.body;
-    if (!ikey || !userId || !amount) { return res.status(400).json({ success: false, message: "Missing required fields !" }) }
 
     try {
         const balance = await getCachedBalance(userId);
